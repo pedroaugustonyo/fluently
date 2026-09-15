@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Fluently.API.Controllers.v1;
 
 /// <summary>
-/// Fluxo contínuo de questões e respostas.
+/// Endpoints de questões.
 /// </summary>
 [ApiController]
 [Route("api/v1/questions")]

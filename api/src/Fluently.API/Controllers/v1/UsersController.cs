@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Fluently.API.Controllers.v1;
 
 /// <summary>
-    /// Dados do usuário.
+/// Endpoints de usuários.
 /// </summary>
 [ApiController]
 [Route("api/v1/users")]

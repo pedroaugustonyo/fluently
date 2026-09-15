@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Fluently.API.Controllers.v1;
 
 /// <summary>
-/// Ranking global de experiência.
+/// Endpoints de ranking.
 /// </summary>
 [ApiController]
 [Route("api/v1/leaderboard")]

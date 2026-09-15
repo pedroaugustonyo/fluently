@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Fluently.API.Controllers.v1;
 
 /// <summary>
-/// Operações de cadastro e autenticação.
+/// Endpoints de autenticação.
 /// </summary>
 [ApiController]
 [Route("api/v1/auth")]
