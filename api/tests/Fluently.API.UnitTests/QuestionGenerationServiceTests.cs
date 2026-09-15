@@ -58,7 +58,7 @@ public sealed class QuestionGenerationServiceTests
 
         Assert.NotNull(prompt);
         Assert.Contains(incorrectQuestion.Question, prompt);
-        Assert.Contains("Alternativa correta: study", prompt);
+        Assert.Contains("Correct alternative: study", prompt);
     }
 
     private QuestionGenerationService CreateService()
