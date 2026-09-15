@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/api/src/">
+    <Project Path="api/src/Fluently.API/Fluently.API.csproj" />
+  </Folder>
+  <Folder Name="/api/tests/">
+    <Project Path="api/tests/Fluently.API.UnitTests/Fluently.API.UnitTests.csproj" />
+  </Folder>
+</Solution>

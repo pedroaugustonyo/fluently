@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+.DS_Store
+.git/
+.github/
+.vscode/
+.env
+api/tests/
+**/TestResults/
+**/*.user
+**/*.suo

@@ -1,0 +1,7 @@
+root = true
+
+[*]
+insert_final_newline = true
+
+[*.cs]
+dotnet_separate_import_directive_groups = true
