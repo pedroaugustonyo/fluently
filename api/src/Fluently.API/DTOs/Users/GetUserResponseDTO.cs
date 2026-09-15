@@ -1,0 +1,54 @@
+using Fluently.API.Enums;
+
+namespace Fluently.API.DTOs.Users;
+
+/// <summary>
+/// Dados retornados ao consultar o usuário.
+/// </summary>
+public sealed class GetUserResponseDTO
+{
+    /// <summary>
+    /// Identificador do usuário.
+    /// </summary>
+    public Guid Id { get; init; }
+
+    /// <summary>
+    /// Primeiro nome.
+    /// </summary>
+    public string FirstName { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Sobrenome.
+    /// </summary>
+    public string LastName { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Endereço de e-mail.
+    /// </summary>
+    public string Email { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Pontuação total.
+    /// </summary>
+    public long TotalXp { get; init; }
+
+    /// <summary>
+    /// Sequência atual de acertos.
+    /// </summary>
+    public int CurrentStreak { get; init; }
+
+    /// <summary>
+    /// Nível de proficiência.
+    /// </summary>
+    public ProficiencyLevelEnum? Proficiency { get; init; }
+
+    /// <summary>
+    /// Biografia usada como contexto das questões.
+    /// </summary>
+    public string? Bio { get; init; }
+
+    /// <summary>
+    /// Data de criação da conta.
+    /// </summary>
+    public DateTimeOffset CreatedAt { get; init; }
+}
