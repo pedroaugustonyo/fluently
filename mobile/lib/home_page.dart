@@ -1,8 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'auth_api_client.dart';
@@ -187,11 +188,11 @@ class _HomePageState extends State<HomePage> {
         _profile = profile;
         _error = null;
         _apiUnavailable = false;
-        _loading = false;
       });
-      if (!profile.needsOnboarding) {
+      if (!profile.needsOnboarding && _question == null) {
         await _loadQuestion();
       }
+      if (mounted) setState(() => _loading = false);
     } on ApiException catch (error) {
       if (_handleUnavailableApiError(error)) {
         return;
@@ -291,7 +292,18 @@ class _HomePageState extends State<HomePage> {
     setState(() => _submittingAnswer = true);
     try {
       final answer = await _api.submitAnswer(_question!.id, alternative.index);
-      if (mounted) setState(() => _answer = answer);
+      if (answer.isCorrect) {
+        unawaited(_playCorrectAnswerFeedback());
+      }
+      if (mounted) {
+        setState(() {
+          _answer = answer;
+          _profile = _profile?.copyWith(
+            totalXp: answer.totalXp,
+            currentStreak: answer.currentStreak,
+          );
+        });
+      }
     } on ApiException catch (error) {
       if (!_handleUnavailableApiError(error) && mounted) {
         showHomeSonnerToast(context, error.message);
@@ -299,6 +311,13 @@ class _HomePageState extends State<HomePage> {
     } finally {
       if (mounted) setState(() => _submittingAnswer = false);
     }
+  }
+
+  Future<void> _playCorrectAnswerFeedback() async {
+    await HapticFeedback.heavyImpact();
+    await Future<void>.delayed(const Duration(milliseconds: 70));
+    await HapticFeedback.mediumImpact();
+    await SystemSound.play(SystemSoundType.alert);
   }
 
   Future<void> _showNextQuestion() => _generateQuestion();
@@ -416,8 +435,21 @@ class _HomePageState extends State<HomePage> {
                 _GlassFooter(index: _tab, onSelected: _changeTab),
               ],
             ),
-            if (_questionLoading)
-              const Positioned.fill(child: _QuestionLoadingOverlay()),
+            Positioned.fill(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                reverseDuration: const Duration(milliseconds: 140),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, animation) =>
+                    FadeTransition(opacity: animation, child: child),
+                child: _questionLoading
+                    ? const _QuestionLoadingOverlay(
+                        key: ValueKey('question-loading'),
+                      )
+                    : const SizedBox(key: ValueKey('question-idle')),
+              ),
+            ),
           ],
         ),
       ),
@@ -668,6 +700,7 @@ class _QuestionsTab extends StatelessWidget {
           _QuestionCard(
             question: question!,
             answer: answer,
+            currentStreak: currentStreak,
             selectedAlternative: selectedAlternative,
             isSubmittingAnswer: isSubmittingAnswer,
             onSelect: onSelect,
@@ -683,6 +716,7 @@ class _QuestionCard extends StatelessWidget {
   const _QuestionCard({
     required this.question,
     required this.answer,
+    required this.currentStreak,
     required this.selectedAlternative,
     required this.isSubmittingAnswer,
     required this.onSelect,
@@ -691,6 +725,7 @@ class _QuestionCard extends StatelessWidget {
   });
   final Question question;
   final AnswerResult? answer;
+  final int currentStreak;
   final QuestionAlternative? selectedAlternative;
   final bool isSubmittingAnswer;
   final ValueChanged<QuestionAlternative> onSelect;
@@ -711,7 +746,7 @@ class _QuestionCard extends StatelessWidget {
                 const Icon(Icons.bolt_rounded, color: Color(0xFF0BA88B)),
                 const SizedBox(width: 5),
                 Text(
-                  '${question.baseXp} XP',
+                  '${answer?.awardedXp ?? question.baseXp * (currentStreak > 0 ? 2 : 1)} XP',
                   style: const TextStyle(
                     color: Color(0xFF0BA88B),
                     fontWeight: FontWeight.w800,
@@ -738,7 +773,7 @@ class _QuestionCard extends StatelessWidget {
                 color: Color(0xFF101B31),
               ),
             ),
-            const SizedBox(height: 13),
+            const SizedBox(height: 19),
             ...question.alternatives.map(
               (alternative) => Padding(
                 padding: const EdgeInsets.only(bottom: 7),
@@ -1063,6 +1098,8 @@ class _ProfileTabState extends State<_ProfileTab> {
   late int? _level = widget.profile.proficiency;
   late String? _profileImageBase64 = widget.profile.profileImageBase64;
   bool _saving = false;
+  bool _savingProfileImage = false;
+  bool _editing = false;
   @override
   void dispose() {
     _first.dispose();
@@ -1072,6 +1109,11 @@ class _ProfileTabState extends State<_ProfileTab> {
   }
 
   Future<void> _save() async {
+    if (!_editing || _saving) {
+      return;
+    }
+
+    FocusScope.of(context).unfocus();
     setState(() => _saving = true);
     try {
       widget.onProfileChanged(
@@ -1080,10 +1122,10 @@ class _ProfileTabState extends State<_ProfileTab> {
           lastName: _last.text.trim(),
           bio: _bio.text.trim(),
           proficiency: _level,
-          profileImageBase64: _profileImageBase64,
         ),
       );
       if (mounted) {
+        setState(() => _editing = false);
         showHomeSonnerToast(
           context,
           'Perfil atualizado com sucesso.',
@@ -1096,6 +1138,40 @@ class _ProfileTabState extends State<_ProfileTab> {
       }
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _saveProfileImage(String? imageBase64) async {
+    final previousImage = _profileImageBase64;
+    setState(() {
+      _profileImageBase64 = imageBase64;
+      _savingProfileImage = true;
+    });
+
+    try {
+      final profile = await widget.api.updateProfile(
+        profileImageBase64: imageBase64,
+      );
+      widget.onProfileChanged(profile);
+      if (mounted) {
+        setState(() => _profileImageBase64 = profile.profileImageBase64);
+        showHomeSonnerToast(
+          context,
+          'Foto de perfil atualizada.',
+          isError: false,
+        );
+      }
+    } on ApiException catch (error) {
+      if (mounted) {
+        setState(() => _profileImageBase64 = previousImage);
+        if (!widget.onApiError(error)) {
+          showHomeSonnerToast(context, error.message);
+        }
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _savingProfileImage = false);
+      }
     }
   }
 
@@ -1112,7 +1188,7 @@ class _ProfileTabState extends State<_ProfileTab> {
     }
 
     if (source == _ProfileImageSource.remove) {
-      setState(() => _profileImageBase64 = '');
+      await _saveProfileImage('');
       return;
     }
 
@@ -1132,19 +1208,25 @@ class _ProfileTabState extends State<_ProfileTab> {
     if (!mounted) {
       return;
     }
-    setState(() => _profileImageBase64 = base64Encode(imageBytes));
+    await _saveProfileImage(base64Encode(imageBytes));
   }
 
   @override
   Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
+    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+    padding: EdgeInsets.fromLTRB(
+      18,
+      10,
+      18,
+      MediaQuery.viewInsetsOf(context).bottom + 10,
+    ),
     children: [
       Center(
         child: Stack(
           clipBehavior: Clip.none,
           children: [
             _ProfileAvatar(
-              radius: 28,
+              radius: 34,
               name: widget.profile.firstName,
               profileImageBase64: _profileImageBase64,
             ),
@@ -1156,14 +1238,23 @@ class _ProfileTabState extends State<_ProfileTab> {
                 shape: const CircleBorder(),
                 child: InkWell(
                   customBorder: const CircleBorder(),
-                  onTap: _pickProfileImage,
-                  child: const Padding(
+                  onTap: _savingProfileImage ? null : _pickProfileImage,
+                  child: Padding(
                     padding: EdgeInsets.all(6),
-                    child: Icon(
-                      Icons.photo_camera_outlined,
-                      size: 16,
-                      color: Colors.white,
-                    ),
+                    child: _savingProfileImage
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.photo_camera_outlined,
+                            size: 16,
+                            color: Colors.white,
+                          ),
                   ),
                 ),
               ),
@@ -1187,45 +1278,64 @@ class _ProfileTabState extends State<_ProfileTab> {
         style: const TextStyle(color: Color(0xFF75839A)),
       ),
       const SizedBox(height: 16),
-      const Text(
-        'Seu perfil',
-        style: TextStyle(
-          fontSize: 17,
-          fontWeight: FontWeight.w800,
-          color: Color(0xFF101B31),
-        ),
+      Row(
+        children: [
+          const Expanded(
+            child: Text(
+              'Seu perfil',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF101B31),
+              ),
+            ),
+          ),
+          IconButton(
+            onPressed: _editing ? null : () => setState(() => _editing = true),
+            constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+            padding: EdgeInsets.zero,
+            icon: const Icon(Icons.edit_outlined, size: 18),
+            color: const Color(0xFF078F78),
+            tooltip: 'Editar perfil',
+          ),
+        ],
       ),
       const SizedBox(height: 6),
       TextField(
         controller: _first,
+        enabled: _editing,
         style: const TextStyle(fontSize: 13.5),
-        decoration: _inputDecoration('Primeiro nome'),
+        decoration: _profileInputDecoration('Primeiro nome', enabled: _editing),
       ),
       const SizedBox(height: 6),
       TextField(
         controller: _last,
+        enabled: _editing,
         style: const TextStyle(fontSize: 13.5),
-        decoration: _inputDecoration('Sobrenome'),
+        decoration: _profileInputDecoration('Sobrenome', enabled: _editing),
       ),
       const SizedBox(height: 6),
       _ProficiencySelect(
         value: _level,
+        enabled: _editing,
         onChanged: (level) => setState(() => _level = level),
       ),
       const SizedBox(height: 6),
       TextField(
         controller: _bio,
+        enabled: _editing,
         maxLines: 4,
         maxLength: 2000,
+        scrollPadding: const EdgeInsets.only(bottom: 160),
         style: const TextStyle(fontSize: 13.5),
-        decoration: _inputDecoration('Sobre você'),
+        decoration: _profileInputDecoration('Sobre você', enabled: _editing),
       ),
       const SizedBox(height: 6),
       _ActionButton(
         label: 'Salvar perfil',
         loading: _saving,
         fontSize: 13,
-        onPressed: _save,
+        onPressed: _editing ? _save : null,
       ),
       const SizedBox(height: 8),
       _ActionButton(
@@ -1240,6 +1350,7 @@ class _ProfileTabState extends State<_ProfileTab> {
         loading: false,
         color: const Color(0xFFD94A4A),
         fontSize: 13,
+        icon: Icons.logout_rounded,
         onPressed: () async => widget.onSignOut(),
       ),
     ],
@@ -1407,9 +1518,14 @@ class _ProfileTabState extends State<_ProfileTab> {
 }
 
 class _ProficiencySelect extends StatelessWidget {
-  const _ProficiencySelect({required this.value, required this.onChanged});
+  const _ProficiencySelect({
+    required this.value,
+    required this.enabled,
+    required this.onChanged,
+  });
 
   final int? value;
+  final bool enabled;
   final ValueChanged<int> onChanged;
 
   Future<void> _showPicker(BuildContext context) async {
@@ -1544,24 +1660,32 @@ class _ProficiencySelect extends StatelessWidget {
   @override
   Widget build(BuildContext context) => InkWell(
     borderRadius: BorderRadius.circular(14),
-    onTap: () => _showPicker(context),
+    onTap: enabled ? () => _showPicker(context) : null,
     child: Ink(
       height: 46,
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF9FCFC),
+        color: enabled ? const Color(0xFFF9FCFC) : const Color(0xFFEFF3F3),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0x3320B79B)),
+        border: Border.all(
+          color: enabled ? const Color(0x3320B79B) : const Color(0xFF8B969B),
+        ),
       ),
       child: Row(
         children: [
-          const Icon(Icons.school_outlined, size: 19, color: Color(0xFF078F78)),
+          Icon(
+            Icons.school_outlined,
+            size: 19,
+            color: enabled ? const Color(0xFF078F78) : const Color(0xFF75839A),
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               value == null ? 'Selecione seu nível' : _levelLabel(value!),
               style: TextStyle(
-                color: value == null
+                color: !enabled
+                    ? const Color(0xFF8B969B)
+                    : value == null
                     ? const Color(0xFF75839A)
                     : const Color(0xFF101B31),
                 fontSize: 13.5,
@@ -1569,9 +1693,9 @@ class _ProficiencySelect extends StatelessWidget {
               ),
             ),
           ),
-          const Icon(
+          Icon(
             Icons.keyboard_arrow_down_rounded,
-            color: Color(0xFF526174),
+            color: enabled ? const Color(0xFF526174) : const Color(0xFF75839A),
           ),
         ],
       ),
@@ -1751,7 +1875,7 @@ class _GlassFooter extends StatelessWidget {
   final ValueChanged<int> onSelected;
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(28, 10, 28, 12),
+    padding: const EdgeInsets.fromLTRB(55, 10, 55, 18),
     child: ClipRRect(
       borderRadius: BorderRadius.circular(24),
       child: BackdropFilter(
@@ -2126,7 +2250,7 @@ class _LoadingScreen extends StatelessWidget {
 }
 
 class _QuestionLoadingOverlay extends StatelessWidget {
-  const _QuestionLoadingOverlay();
+  const _QuestionLoadingOverlay({super.key});
 
   @override
   Widget build(BuildContext context) => AbsorbPointer(
@@ -2200,12 +2324,14 @@ class _ActionButton extends StatelessWidget {
     required this.onPressed,
     this.color = const Color(0xFF0BA88B),
     this.fontSize = 14,
+    this.icon,
   });
   final String label;
   final bool loading;
   final Color color;
   final double fontSize;
-  final Future<void> Function() onPressed;
+  final IconData? icon;
+  final Future<void> Function()? onPressed;
   @override
   Widget build(BuildContext context) => SizedBox(
     height: 42,
@@ -2225,9 +2351,21 @@ class _ActionButton extends StatelessWidget {
                 color: Colors.white,
               ),
             )
-          : Text(
-              label,
-              style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w800),
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (icon != null) ...[
+                  Icon(icon, size: 17),
+                  const SizedBox(width: 7),
+                ],
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
             ),
     ),
   );
@@ -2268,6 +2406,11 @@ InputDecoration _inputDecoration(String hint) => InputDecoration(
     borderSide: const BorderSide(color: Color(0x220BA88B)),
   ),
 );
+
+InputDecoration _profileInputDecoration(String hint, {required bool enabled}) =>
+    _inputDecoration(hint).copyWith(
+      fillColor: enabled ? const Color(0xBFFFFFFF) : const Color(0xFFEFF3F3),
+    );
 
 String? _credentialEmailValidator(String? value) {
   final email = value?.trim() ?? '';

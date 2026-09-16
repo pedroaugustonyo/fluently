@@ -347,9 +347,9 @@ class _LoginPageState extends State<LoginPage> {
             keyboardType: TextInputType.emailAddress,
             autofillHints: const [AutofillHints.email],
             prefixIcon: Icons.mail_outline_rounded,
-            validator: (_) => null,
-            serverError: null,
-            onChanged: (_) {},
+            validator: _emailValidator,
+            serverError: _serverErrors['Email'],
+            onChanged: (_) => _clearServerError('Email'),
           ),
           const SizedBox(height: 10),
           _GlassInputField(

@@ -161,6 +161,20 @@ class UserProfile {
   bool get needsOnboarding =>
       proficiency == null || bio == null || bio!.trim().isEmpty;
 
+  UserProfile copyWith({int? totalXp, int? currentStreak}) {
+    return UserProfile(
+      id: id,
+      firstName: firstName,
+      lastName: lastName,
+      email: email,
+      totalXp: totalXp ?? this.totalXp,
+      currentStreak: currentStreak ?? this.currentStreak,
+      proficiency: proficiency,
+      bio: bio,
+      profileImageBase64: profileImageBase64,
+    );
+  }
+
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
       id: json['id'] as String? ?? '',
