@@ -26,6 +26,8 @@ public sealed class QuestionGenerationServiceTests
         questionRepository.Setup(repository => repository.ExistsContextFingerprintAsync(
                 user.Id, It.IsAny<string>(), cancellationToken))
             .ReturnsAsync(false);
+        questionRepository.Setup(repository => repository.CountByUserAsync(user.Id, cancellationToken))
+            .ReturnsAsync(0);
 
         var result = await CreateService().GenerateAsync(user, cancellationToken);
 
@@ -39,19 +41,29 @@ public sealed class QuestionGenerationServiceTests
     public async Task GenerateAsync_IncludesCurrentProfileInPrompt()
     {
         var user = TestData.CreateUser();
+        string? systemPrompt = null;
         string? prompt = null;
         languageModelClient.Setup(client => client.GetStructuredResponseAsync<QuestionGenerationOutputDTO>(
                 It.IsAny<string>(), It.IsAny<string>(), 1, cancellationToken))
-            .Callback<string, string, float, CancellationToken>((_, userPrompt, _, _) => prompt = userPrompt)
+            .Callback<string, string, float, CancellationToken>((promptInstructions, userPrompt, _, _) =>
+            {
+                systemPrompt = promptInstructions;
+                prompt = userPrompt;
+            })
             .ReturnsAsync(CreateOutput());
         questionRepository.Setup(repository => repository.ExistsContextFingerprintAsync(
                 user.Id, It.IsAny<string>(), cancellationToken))
             .ReturnsAsync(false);
+        questionRepository.Setup(repository => repository.CountByUserAsync(user.Id, cancellationToken))
+            .ReturnsAsync(2);
 
         await CreateService().GenerateAsync(user, cancellationToken);
 
         Assert.NotNull(prompt);
         Assert.Contains("Biography: " + user.Bio, prompt);
+        Assert.Contains("Question sequence number: 3", prompt);
+        Assert.NotNull(systemPrompt);
+        Assert.Contains("rotate through every interest", systemPrompt);
     }
 
     private QuestionGenerationService CreateService()
