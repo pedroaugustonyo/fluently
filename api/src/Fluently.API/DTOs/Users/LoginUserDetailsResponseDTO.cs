@@ -48,6 +48,11 @@ public sealed class LoginUserDetailsResponseDTO
     public string? Bio { get; init; }
 
     /// <summary>
+    /// Imagem de perfil codificada em Base64.
+    /// </summary>
+    public string? ProfileImageBase64 { get; init; }
+
+    /// <summary>
     /// Data de criação da conta.
     /// </summary>
     public DateTimeOffset CreatedAt { get; init; }

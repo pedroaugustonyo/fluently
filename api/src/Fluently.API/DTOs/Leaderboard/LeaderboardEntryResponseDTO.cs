@@ -21,6 +21,11 @@ public sealed class LeaderboardEntryResponseDTO
     public string FullName { get; init; } = string.Empty;
 
     /// <summary>
+    /// Imagem de perfil codificada em Base64.
+    /// </summary>
+    public string? ProfileImageBase64 { get; init; }
+
+    /// <summary>
     /// Experiência total acumulada pelo usuário.
     /// </summary>
     public long TotalXp { get; init; }

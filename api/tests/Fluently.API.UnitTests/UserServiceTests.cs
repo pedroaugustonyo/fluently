@@ -16,6 +16,7 @@ public sealed class UserServiceTests
 {
     private readonly Mock<ICurrentUserService> currentUserService = new();
     private readonly Mock<IUserRepository> userRepository = new();
+    private readonly Mock<IQuestionRepository> questionRepository = new();
     private readonly Mock<IPasswordHasher<UserModel>> passwordHasher = new();
     private readonly CancellationToken cancellationToken = new CancellationTokenSource().Token;
 
@@ -83,6 +84,9 @@ public sealed class UserServiceTests
         Assert.Equal(user.Bio, response.Bio);
         userRepository.Verify(repository => repository.Update(user), Times.Once);
         userRepository.Verify(repository => repository.SaveChangesAsync(cancellationToken), Times.Once);
+        questionRepository.Verify(
+            repository => repository.DeleteCurrentAsync(user.Id, cancellationToken),
+            Times.Once);
     }
 
     [Fact]
@@ -151,6 +155,7 @@ public sealed class UserServiceTests
         return new UserService(
             currentUserService.Object,
             userRepository.Object,
+            questionRepository.Object,
             passwordHasher.Object,
             NullLogger<UserService>.Instance);
     }

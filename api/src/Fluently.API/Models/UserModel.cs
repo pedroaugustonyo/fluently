@@ -53,6 +53,11 @@ public sealed class UserModel : BaseModel
     public string? Bio { get; set; }
 
     /// <summary>
+    /// Imagem de perfil codificada em Base64.
+    /// </summary>
+    public string? ProfileImageBase64 { get; set; }
+
+    /// <summary>
     /// Questões geradas para o usuário.
     /// </summary>
     public ICollection<QuestionModel> Questions { get; } = [];

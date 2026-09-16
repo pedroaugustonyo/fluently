@@ -34,6 +34,8 @@ public sealed class UserModelConfiguration : IEntityTypeConfiguration<UserModel>
         builder.Property(user => user.Bio)
             .HasMaxLength(2000)
             .HasComment("Biografia utilizada como contexto para gerar questões personalizadas.");
+        builder.Property(user => user.ProfileImageBase64)
+            .HasColumnType("text");
 
         builder.ToTable(table =>
         {

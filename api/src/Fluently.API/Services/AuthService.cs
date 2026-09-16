@@ -136,6 +136,7 @@ public sealed class AuthService : IAuthService
             CurrentStreak = user.CurrentStreak,
             Proficiency = user.Proficiency,
             Bio = user.Bio,
+            ProfileImageBase64 = user.ProfileImageBase64,
             CreatedAt = user.CreatedAt
         };
     }
@@ -157,6 +158,7 @@ public sealed class AuthService : IAuthService
             CurrentStreak = user.CurrentStreak,
             Proficiency = user.Proficiency,
             Bio = user.Bio,
+            ProfileImageBase64 = user.ProfileImageBase64,
             CreatedAt = user.CreatedAt
         };
     }

@@ -16,6 +16,14 @@ public interface IQuestionRepository : IBaseRepository<QuestionModel>
     Task<QuestionModel?> GetCurrentAsync(Guid userId, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Remove a questão pendente de um usuário.
+    /// </summary>
+    /// <param name="userId">Identificador do usuário.</param>
+    /// <param name="cancellationToken">Token para cancelar a operação.</param>
+    /// <returns>Quantidade de questões removidas.</returns>
+    Task<int> DeleteCurrentAsync(Guid userId, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Obtém uma questão pertencente ao usuário informado.
     /// </summary>
     /// <param name="questionId">Identificador da questão.</param>

@@ -35,4 +35,10 @@ public sealed class UpdateUserRequestDTO
     [MinLength(1, ErrorMessage = "A biografia não pode estar vazia.")]
     [StringLength(2000, ErrorMessage = "A biografia deve ter até 2000 caracteres.")]
     public string? Bio { get; init; }
+
+    /// <summary>
+    /// Imagem de perfil codificada em Base64.
+    /// </summary>
+    [StringLength(1000000, ErrorMessage = "A imagem de perfil é muito grande.")]
+    public string? ProfileImageBase64 { get; init; }
 }

@@ -32,6 +32,19 @@ public sealed class QuestionRepository : BaseRepository<QuestionModel>, IQuestio
     }
 
     /// <summary>
+    /// Remove a questão pendente de um usuário.
+    /// </summary>
+    /// <param name="userId">Identificador do usuário.</param>
+    /// <param name="cancellationToken">Token para cancelar a operação.</param>
+    /// <returns>Quantidade de questões removidas.</returns>
+    public Task<int> DeleteCurrentAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        return _dbSet
+            .Where(question => question.UserId == userId && question.AnsweredAt == null)
+            .ExecuteDeleteAsync(cancellationToken);
+    }
+
+    /// <summary>
     /// Obtém uma questão pertencente ao usuário informado.
     /// </summary>
     /// <param name="questionId">Identificador da questão.</param>

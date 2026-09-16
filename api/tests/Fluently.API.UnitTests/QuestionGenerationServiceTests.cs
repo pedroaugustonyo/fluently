@@ -20,7 +20,6 @@ public sealed class QuestionGenerationServiceTests
     public async Task GenerateAsync_ValidOutput_ReturnsQuestionWithTranslationsAndCorrectIndex()
     {
         var user = TestData.CreateUser();
-        SetupHistory(user);
         languageModelClient.Setup(client => client.GetStructuredResponseAsync<QuestionGenerationOutputDTO>(
                 It.IsAny<string>(), It.IsAny<string>(), 1, cancellationToken))
             .ReturnsAsync(CreateOutput());
@@ -32,19 +31,18 @@ public sealed class QuestionGenerationServiceTests
 
         Assert.Equal("Eu estudo inglês todos os dias.", result.QuestionTranslation);
         Assert.Equal(5, result.Alternatives.Count);
-        Assert.Equal(1, result.CorrectAlternativeIndex);
-        Assert.Equal("estudo", result.Alternatives[0].Translation);
+        Assert.InRange(result.CorrectAlternativeIndex, 1, 5);
+        Assert.Equal("estudo", result.Alternatives[result.CorrectAlternativeIndex - 1].Translation);
     }
 
     [Fact]
-    public async Task GenerateAsync_PreviousIncorrectQuestions_IncludesThemInPrompt()
+    public async Task GenerateAsync_UsesOnlyCurrentProfileInPrompt()
     {
         var user = TestData.CreateUser();
         var incorrectQuestion = TestData.CreateQuestion(user);
         incorrectQuestion.IsCorrect = false;
         incorrectQuestion.AnsweredAt = TestData.Now;
         incorrectQuestion.SubmittedAlternativeIndex = 2;
-        SetupHistory(user, [incorrectQuestion]);
         string? prompt = null;
         languageModelClient.Setup(client => client.GetStructuredResponseAsync<QuestionGenerationOutputDTO>(
                 It.IsAny<string>(), It.IsAny<string>(), 1, cancellationToken))
@@ -57,8 +55,20 @@ public sealed class QuestionGenerationServiceTests
         await CreateService().GenerateAsync(user, cancellationToken);
 
         Assert.NotNull(prompt);
-        Assert.Contains(incorrectQuestion.Question, prompt);
-        Assert.Contains("Correct alternative: study", prompt);
+        Assert.Contains("Biography: " + user.Bio, prompt);
+        Assert.DoesNotContain(incorrectQuestion.Question, prompt);
+        questionRepository.Verify(
+            repository => repository.GetRecentContextsAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+        questionRepository.Verify(
+            repository => repository.GetRecentIncorrectAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     private QuestionGenerationService CreateService()
@@ -67,20 +77,12 @@ public sealed class QuestionGenerationServiceTests
             Microsoft.Extensions.Options.Options.Create(new OpenAIOptions { GenerationTemperature = 1 }));
     }
 
-    private void SetupHistory(UserModel user, IReadOnlyList<QuestionModel>? incorrectQuestions = null)
-    {
-        questionRepository.Setup(repository => repository.GetRecentContextsAsync(user.Id, 20, cancellationToken))
-            .ReturnsAsync([]);
-        questionRepository.Setup(repository => repository.GetRecentIncorrectAsync(user.Id, 10, cancellationToken))
-            .ReturnsAsync(incorrectQuestions ?? []);
-    }
-
     private static QuestionGenerationOutputDTO CreateOutput()
     {
         return new QuestionGenerationOutputDTO
         {
             Context = "Pedro está descrevendo sua rotina de estudos.",
-            Question = "I ? English every day.",
+            Question = "I ___ English every day.",
             QuestionTranslation = "Eu estudo inglês todos os dias.",
             Alternatives =
             [

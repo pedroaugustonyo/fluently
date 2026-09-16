@@ -24,6 +24,11 @@ public sealed class UserService : IUserService
     private readonly IUserRepository _userRepository;
 
     /// <summary>
+    /// Repositório de questões.
+    /// </summary>
+    private readonly IQuestionRepository _questionRepository;
+
+    /// <summary>
     /// Componente de proteção de senhas.
     /// </summary>
     private readonly IPasswordHasher<UserModel> _passwordHasher;
@@ -38,15 +43,18 @@ public sealed class UserService : IUserService
     /// </summary>
     /// <param name="currentUserService">Serviço utilizado para identificar o usuário atual.</param>
     /// <param name="userRepository">Repositório utilizado para acessar os usuários.</param>
+    /// <param name="questionRepository">Repositório utilizado para invalidar questões pendentes.</param>
     /// <param name="passwordHasher">Componente utilizado para proteger as senhas.</param>
     /// <param name="logger">Registrador dos eventos internos do usuário.</param>
     public UserService(ICurrentUserService currentUserService,
                        IUserRepository userRepository,
+                       IQuestionRepository questionRepository,
                        IPasswordHasher<UserModel> passwordHasher,
                        ILogger<UserService> logger)
     {
         _currentUserService = currentUserService;
         _userRepository = userRepository;
+        _questionRepository = questionRepository;
         _passwordHasher = passwordHasher;
         _logger = logger;
     }
@@ -93,7 +101,17 @@ public sealed class UserService : IUserService
 
         if (request.Bio is not null)
         {
-            user.Bio = request.Bio.Trim();
+            var updatedBio = request.Bio.Trim();
+            if (!string.Equals(user.Bio, updatedBio, StringComparison.Ordinal))
+            {
+                user.Bio = updatedBio;
+                await _questionRepository.DeleteCurrentAsync(user.Id, cancellationToken);
+            }
+        }
+
+        if (request.ProfileImageBase64 is not null)
+        {
+            user.ProfileImageBase64 = NormalizeProfileImage(request.ProfileImageBase64);
         }
 
         user.UpdatedAt = DateTimeOffset.UtcNow;
@@ -164,6 +182,30 @@ public sealed class UserService : IUserService
             ?? throw new NotFoundException("O usuário autenticado não foi encontrado.");
     }
 
+    private static string? NormalizeProfileImage(string profileImageBase64)
+    {
+        var value = profileImageBase64.Trim();
+        if (string.IsNullOrEmpty(value))
+        {
+            return null;
+        }
+
+        try
+        {
+            var imageBytes = Convert.FromBase64String(value);
+            if (imageBytes.Length > 750000)
+            {
+                throw new BadRequestException("A imagem de perfil é muito grande.");
+            }
+
+            return Convert.ToBase64String(imageBytes);
+        }
+        catch (FormatException)
+        {
+            throw new BadRequestException("A imagem de perfil é inválida.");
+        }
+    }
+
     /// <summary>
     /// Converte o usuário para sua resposta pública.
     /// </summary>
@@ -181,6 +223,7 @@ public sealed class UserService : IUserService
             CurrentStreak = user.CurrentStreak,
             Proficiency = user.Proficiency,
             Bio = user.Bio,
+            ProfileImageBase64 = user.ProfileImageBase64,
             CreatedAt = user.CreatedAt
         };
     }
@@ -202,6 +245,7 @@ public sealed class UserService : IUserService
             CurrentStreak = user.CurrentStreak,
             Proficiency = user.Proficiency,
             Bio = user.Bio,
+            ProfileImageBase64 = user.ProfileImageBase64,
             CreatedAt = user.CreatedAt
         };
     }

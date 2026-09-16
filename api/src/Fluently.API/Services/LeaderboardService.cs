@@ -45,6 +45,7 @@ public sealed class LeaderboardService : ILeaderboardService
                 Rank = skip + index + 1,
                 UserId = user.Id,
                 FullName = $"{user.FirstName} {user.LastName}".Trim(),
+                ProfileImageBase64 = user.ProfileImageBase64,
                 TotalXp = user.TotalXp
             })
             .ToArray();
