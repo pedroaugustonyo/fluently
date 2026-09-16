@@ -36,13 +36,9 @@ public sealed class QuestionGenerationServiceTests
     }
 
     [Fact]
-    public async Task GenerateAsync_UsesOnlyCurrentProfileInPrompt()
+    public async Task GenerateAsync_IncludesCurrentProfileInPrompt()
     {
         var user = TestData.CreateUser();
-        var incorrectQuestion = TestData.CreateQuestion(user);
-        incorrectQuestion.IsCorrect = false;
-        incorrectQuestion.AnsweredAt = TestData.Now;
-        incorrectQuestion.SubmittedAlternativeIndex = 2;
         string? prompt = null;
         languageModelClient.Setup(client => client.GetStructuredResponseAsync<QuestionGenerationOutputDTO>(
                 It.IsAny<string>(), It.IsAny<string>(), 1, cancellationToken))
@@ -56,19 +52,6 @@ public sealed class QuestionGenerationServiceTests
 
         Assert.NotNull(prompt);
         Assert.Contains("Biography: " + user.Bio, prompt);
-        Assert.DoesNotContain(incorrectQuestion.Question, prompt);
-        questionRepository.Verify(
-            repository => repository.GetRecentContextsAsync(
-                It.IsAny<Guid>(),
-                It.IsAny<int>(),
-                It.IsAny<CancellationToken>()),
-            Times.Never);
-        questionRepository.Verify(
-            repository => repository.GetRecentIncorrectAsync(
-                It.IsAny<Guid>(),
-                It.IsAny<int>(),
-                It.IsAny<CancellationToken>()),
-            Times.Never);
     }
 
     private QuestionGenerationService CreateService()

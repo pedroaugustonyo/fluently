@@ -126,42 +126,4 @@ public sealed class QuestionRepository : BaseRepository<QuestionModel>, IQuestio
             cancellationToken);
     }
 
-    /// <summary>
-    /// Obtém os contextos mais recentes de um usuário.
-    /// </summary>
-    /// <param name="userId">Identificador do usuário.</param>
-    /// <param name="limit">Quantidade máxima de contextos.</param>
-    /// <param name="cancellationToken">Token para cancelar a operação.</param>
-    /// <returns>Lista dos contextos mais recentes.</returns>
-    public async Task<IReadOnlyList<string>> GetRecentContextsAsync(Guid userId,
-                                                                    int limit,
-                                                                    CancellationToken cancellationToken)
-    {
-        return await _dbSet.AsNoTracking()
-            .Where(question => question.UserId == userId)
-            .OrderByDescending(question => question.CreatedAt)
-            .Take(limit)
-            .Select(question => question.Context)
-            .ToArrayAsync(cancellationToken);
-    }
-
-    /// <summary>
-    /// Obtém as questões erradas mais recentes de um usuário.
-    /// </summary>
-    /// <param name="userId">Identificador do usuário.</param>
-    /// <param name="limit">Quantidade máxima de questões.</param>
-    /// <param name="cancellationToken">Token para cancelar a operação.</param>
-    /// <returns>Lista das questões erradas mais recentes.</returns>
-    public async Task<IReadOnlyList<QuestionModel>> GetRecentIncorrectAsync(Guid userId,
-                                                                             int limit,
-                                                                             CancellationToken cancellationToken)
-    {
-        return await _dbSet.AsNoTracking()
-            .Where(question => question.UserId == userId &&
-                               question.AnsweredAt != null &&
-                               question.IsCorrect == false)
-            .OrderByDescending(question => question.AnsweredAt)
-            .Take(limit)
-            .ToArrayAsync(cancellationToken);
-    }
 }

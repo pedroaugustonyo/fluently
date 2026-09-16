@@ -73,25 +73,4 @@ public interface IQuestionRepository : IBaseRepository<QuestionModel>
                                              string fingerprint,
                                              CancellationToken cancellationToken);
 
-    /// <summary>
-    /// Obtém os contextos mais recentes de um usuário.
-    /// </summary>
-    /// <param name="userId">Identificador do usuário.</param>
-    /// <param name="limit">Quantidade máxima de contextos.</param>
-    /// <param name="cancellationToken">Token para cancelar a operação.</param>
-    /// <returns>Lista dos contextos mais recentes.</returns>
-    Task<IReadOnlyList<string>> GetRecentContextsAsync(Guid userId,
-                                                       int limit,
-                                                       CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Obtém as questões erradas mais recentes de um usuário.
-    /// </summary>
-    /// <param name="userId">Identificador do usuário.</param>
-    /// <param name="limit">Quantidade máxima de questões.</param>
-    /// <param name="cancellationToken">Token para cancelar a operação.</param>
-    /// <returns>Lista das questões erradas mais recentes.</returns>
-    Task<IReadOnlyList<QuestionModel>> GetRecentIncorrectAsync(Guid userId,
-                                                                int limit,
-                                                                CancellationToken cancellationToken);
 }
