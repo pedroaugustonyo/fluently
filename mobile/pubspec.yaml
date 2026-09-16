@@ -1,0 +1,35 @@
+name: fluently
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+  google_fonts: ^8.2.1
+  http: ^1.6.0
+  flutter_secure_storage: ^10.0.0
+  image_picker: ^1.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/fluently_mascot_auth.png
+    - assets/images/fluently_mascot.png
+    - assets/images/fluently_icon.png
+    - assets/images/fluently_wordmark.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/images/fluently_app_icon.png
+  remove_alpha_ios: true

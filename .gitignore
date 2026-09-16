@@ -499,7 +499,7 @@ $RECYCLE.BIN/
 # As packages are no longer pinned, we use a lockfile for testing locally.
 # When unpinning packages, Using lockfiles ensures that failures in PRs are
 # actually due to those PRs, not due to a package being updated.
-!/pubspec.lock
+!**/pubspec.lock
 
 # IntelliJ related
 *.iml
