@@ -678,8 +678,8 @@ class _QuestionsTab extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            if (currentStreak > 1) _StreakFire(streak: currentStreak),
-            if (currentStreak > 1) const SizedBox(width: 10),
+            if (currentStreak >= 3) _StreakFire(streak: currentStreak),
+            if (currentStreak >= 3) const SizedBox(width: 10),
             IconButton(
               onPressed: onHistory,
               icon: const Icon(Icons.history_rounded),
@@ -746,7 +746,7 @@ class _QuestionCard extends StatelessWidget {
                 const Icon(Icons.bolt_rounded, color: Color(0xFF0BA88B)),
                 const SizedBox(width: 5),
                 Text(
-                  '${answer?.awardedXp ?? question.baseXp * (currentStreak > 0 ? 2 : 1)} XP',
+                  '${answer?.awardedXp ?? question.baseXp * (currentStreak >= 2 ? 2 : 1)} XP',
                   style: const TextStyle(
                     color: Color(0xFF0BA88B),
                     fontWeight: FontWeight.w800,
@@ -964,11 +964,19 @@ class _StreakFireState extends State<_StreakFire>
           size: 20,
           color: Color(0xFFFF8B22),
         ),
-        Text(
-          '${widget.streak}',
-          style: const TextStyle(
-            color: Color(0xFFFF8B22),
-            fontWeight: FontWeight.w800,
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 220),
+          transitionBuilder: (child, animation) => FadeTransition(
+            opacity: animation,
+            child: child,
+          ),
+          child: Text(
+            '${widget.streak}',
+            key: ValueKey(widget.streak),
+            style: const TextStyle(
+              color: Color(0xFFFF8B22),
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ),
       ],

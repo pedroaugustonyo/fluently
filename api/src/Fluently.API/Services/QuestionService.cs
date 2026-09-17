@@ -12,6 +12,8 @@ namespace Fluently.API.Services;
 /// </summary>
 public sealed class QuestionService : IQuestionService
 {
+    private const int StreakMultiplierThreshold = 3;
+
     /// <summary>
     /// Serviço do usuário atual.
     /// </summary>
@@ -315,7 +317,9 @@ public sealed class QuestionService : IQuestionService
             return 0;
         }
 
-        var awardedXp = user.CurrentStreak == 0 ? baseXp : baseXp * 2;
+        var awardedXp = user.CurrentStreak + 1 >= StreakMultiplierThreshold
+            ? baseXp * 2
+            : baseXp;
 
         user.CurrentStreak++;
         user.TotalXp += awardedXp;

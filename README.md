@@ -17,6 +17,7 @@
 - Flutter com Dart SDK 3.13.3 ou compatível.
 - PostgreSQL 12 ou superior.
 - Docker Desktop, opcional.
+- Cloudflare Tunnel, opcional.
 - Chave de API da OpenAI.
 
 ## Configuração
@@ -33,8 +34,6 @@ Jwt__SigningKey=troque
 OpenAI__ApiKey=troque
 ~~~
 
-Não envie chaves reais ao repositório. As configurações não secretas ficam em api/src/Fluently.API/appsettings.json.
-
 ## Executando
 
 ~~~bash
@@ -50,7 +49,23 @@ Para Docker:
 docker compose up --build
 ~~~
 
-A API ficará em http://localhost:8080. O Compose não cria um container do PostgreSQL; o banco precisa estar disponível separadamente.
+A API ficará em http://localhost:8080.
+
+Para acesso externo temporário com Cloudflare Tunnel:
+
+Terminal 1:
+
+~~~bash
+cloudflared tunnel --url http://localhost:5229
+~~~
+
+Terminal 2, usando a URL exibida pelo túnel:
+
+~~~bash
+flutter run --dart-define=API_BASE_URL=https://<url-do-tunel>.trycloudflare.com
+~~~
+
+Com Docker, use `cloudflared tunnel --url http://localhost:8080`.
 
 Para executar o aplicativo:
 

@@ -130,6 +130,44 @@ public sealed class QuestionServiceTests
     }
 
     [Fact]
+    public async Task SubmitAnswerAsync_ThirdConsecutiveCorrectAnswer_ActivatesMultiplier()
+    {
+        var user = TestData.CreateUser();
+        user.CurrentStreak = 2;
+        var question = TestData.CreateQuestion(user);
+        SetupOwnedQuestion(question);
+        questionRepository.Setup(repository => repository.SaveChangesAsync(cancellationToken)).ReturnsAsync(1);
+
+        var response = await CreateService().SubmitAnswerAsync(
+            question.Id,
+            new SubmitQuestionAnswerRequestDTO { AlternativeIndex = 1 },
+            cancellationToken);
+
+        Assert.True(response.IsCorrect);
+        Assert.Equal(30, response.AwardedXp);
+        Assert.Equal(3, response.CurrentStreak);
+    }
+
+    [Fact]
+    public async Task SubmitAnswerAsync_SecondConsecutiveCorrectAnswer_DoesNotActivateMultiplier()
+    {
+        var user = TestData.CreateUser();
+        user.CurrentStreak = 1;
+        var question = TestData.CreateQuestion(user);
+        SetupOwnedQuestion(question);
+        questionRepository.Setup(repository => repository.SaveChangesAsync(cancellationToken)).ReturnsAsync(1);
+
+        var response = await CreateService().SubmitAnswerAsync(
+            question.Id,
+            new SubmitQuestionAnswerRequestDTO { AlternativeIndex = 1 },
+            cancellationToken);
+
+        Assert.True(response.IsCorrect);
+        Assert.Equal(15, response.AwardedXp);
+        Assert.Equal(2, response.CurrentStreak);
+    }
+
+    [Fact]
     public async Task SubmitAnswerAsync_IncorrectAlternative_ResetsStreakAndExposesCorrectAlternative()
     {
         var user = TestData.CreateUser();

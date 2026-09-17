@@ -1,6 +1,6 @@
 # Aplicativo mobile do Fluently
 
-[← Voltar para o README principal](../README.md)
+[Voltar](../README.md)
 
 Aplicativo Flutter usado para login, onboarding, exercícios, progresso, histórico, ranking e edição do perfil.
 
@@ -16,14 +16,15 @@ Aplicativo Flutter usado para login, onboarding, exercícios, progresso, histór
 
 A tela inicial permite fazer login. O cadastro pede nome, sobrenome, e-mail, senha e confirmação.
 
-![Espaço reservado para login](images/login-screen.png)
-![Espaço reservado para cadastro](images/register-screen.png)
+![Tela de login](images/login-screen.png)
+
+![Tela de cadastro](images/register-screen.png)
 
 ### Onboarding
 
 Depois do cadastro, o estudante informa o nível de proficiência, de A1 a C2, e uma breve biografia com seus interesses. O fluxo só começa depois dessas informações.
 
-![Espaço reservado para onboarding](images/onboarding-screen.png)
+![Tela de onboarding](images/onboarding-screen.png)
 
 ### Questões
 
@@ -31,25 +32,23 @@ A aba principal mostra o contexto em português, a frase em inglês e cinco alte
 
 A API permite uma questão pendente por usuário. Depois de responder, o estudante pode solicitar a próxima.
 
-![Espaço reservado para questões](images/question-screen.png)
+![Tela de questões](images/question-screen.png)
 
 ### Histórico
 
 O histórico usa paginação e permite abrir uma questão anterior para consultar a resposta e o resultado.
 
-![Espaço reservado para histórico](images/question-history.png)
-
 ### Ranking
 
 A aba de ranking mostra a classificação geral por XP, com posição, nome, imagem e pontuação.
 
-![Espaço reservado para ranking](images/leaderboard-screen.png)
+![Tela de ranking](images/leaderboard-screen.png)
 
 ### Perfil
 
 A aba de perfil mostra nome, e-mail, XP, sequência, proficiência e biografia. Também permite editar os dados e escolher uma imagem pela câmera ou galeria.
 
-![Espaço reservado para perfil](images/profile-screen.png)
+![Tela de perfil](images/profile-screen.png)
 
 ## Fluxo de navegação
 
@@ -133,8 +132,6 @@ As credenciais também podem ser alteradas em PUT /api/v1/users/me/credentials.
 
 Os clientes Dart leem detail e errors. O aplicativo mostra mensagens temporárias para API indisponível, sessão expirada, campos inválidos, perfil incompleto e falhas da IA.
 
-![Espaço reservado para estados de erro](images/error-states.png)
-
 ## Executando e compilando
 
 ~~~bash
@@ -162,5 +159,3 @@ O projeto possui pastas para Android, iOS, macOS, Linux, Windows e web. Os alvos
 ## Design
 
 A interface usa fundo claro, tons de verde, cards arredondados, mascote do Fluently, fonte Outfit e transições animadas.
-
-![Espaço reservado para montagem das telas](images/mobile-collage.png)

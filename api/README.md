@@ -1,6 +1,6 @@
 # API do Fluently
 
-[← Voltar para o README principal](../README.md)
+[Voltar](../README.md)
 
 API REST usada pelo aplicativo Fluently, desenvolvida com ASP.NET Core 10.
 
@@ -28,7 +28,7 @@ http://localhost:5229/swagger
 http://localhost:5229/swagger/v1/swagger.json
 ~~~
 
-![Espaço reservado para o Swagger](images/swagger-ui.png)
+![Swagger da API](images/swagger-ui.png)
 
 Para testar rotas protegidas, clique em **Authorize** e informe Bearer SEU_TOKEN_DE_ACESSO.
 

@@ -1,4 +1,19 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fluently-postgres
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-postgres}"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
   api:
     container_name: fluently-api
     build:
@@ -6,10 +21,17 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
     env_file:
       - .env
     environment:
       ASPNETCORE_ENVIRONMENT: "${ASPNETCORE_ENVIRONMENT:-Development}"
       ASPNETCORE_URLS: "${ASPNETCORE_URLS:-http://+:8080}"
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=postgres;Username=postgres;Password=${POSTGRES_PASSWORD:-postgres}"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+
+volumes:
+  postgres-data:
