@@ -11,6 +11,13 @@
 <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker">
 </p>
 
+## Informações UNIUBE
+
+- Disciplina: Desenvolvimento para Dispositivos Móveis
+- Tutor: Mateus de Sousa Valente
+- Avaliação: 08/08/2026 a 20/09/2026
+- Valor: 20 pontos
+
 ## Pré-requisitos
 
 - .NET SDK 10.0.400 ou compatível.
