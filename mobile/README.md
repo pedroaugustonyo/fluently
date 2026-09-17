@@ -16,15 +16,21 @@ Aplicativo Flutter usado para login, onboarding, exercícios, progresso, histór
 
 A tela inicial permite fazer login. O cadastro pede nome, sobrenome, e-mail, senha e confirmação.
 
-![Tela de login](images/login-screen.png)
+<p align="center">
+<img src="assets/images/login-screen.png" alt="Tela de login" width="240">
+</p>
 
-![Tela de cadastro](images/register-screen.png)
+<p align="center">
+<img src="assets/images/register-screen.png" alt="Tela de cadastro" width="240">
+</p>
 
 ### Onboarding
 
 Depois do cadastro, o estudante informa o nível de proficiência, de A1 a C2, e uma breve biografia com seus interesses. O fluxo só começa depois dessas informações.
 
-![Tela de onboarding](images/onboarding-screen.png)
+<p align="center">
+<img src="assets/images/onboarding-screen.png" alt="Tela de onboarding" width="240">
+</p>
 
 ### Questões
 
@@ -32,23 +38,33 @@ A aba principal mostra o contexto em português, a frase em inglês e cinco alte
 
 A API permite uma questão pendente por usuário. Depois de responder, o estudante pode solicitar a próxima.
 
-![Tela de questões](images/question-screen.png)
+<p align="center">
+<img src="assets/images/question-screen.png" alt="Tela de questões" width="240">
+</p>
 
 ### Histórico
 
 O histórico usa paginação e permite abrir uma questão anterior para consultar a resposta e o resultado.
 
+<p align="center">
+<img src="assets/images/question-history.png" alt="Histórico de questões" width="240">
+</p>
+
 ### Ranking
 
 A aba de ranking mostra a classificação geral por XP, com posição, nome, imagem e pontuação.
 
-![Tela de ranking](images/leaderboard-screen.png)
+<p align="center">
+<img src="assets/images/leaderboard-screen.png" alt="Tela de ranking" width="240">
+</p>
 
 ### Perfil
 
 A aba de perfil mostra nome, e-mail, XP, sequência, proficiência e biografia. Também permite editar os dados e escolher uma imagem pela câmera ou galeria.
 
-![Tela de perfil](images/profile-screen.png)
+<p align="center">
+<img src="assets/images/profile-screen.png" alt="Tela de perfil" width="240">
+</p>
 
 ## Fluxo de navegação
 
@@ -72,7 +88,7 @@ Início
 | lib/auth_api_client.dart | Login, cadastro e modelos |
 | lib/fluently_api_client.dart | Chamadas autenticadas e modelos |
 | lib/session_store.dart | Armazenamento seguro do token |
-| assets/images/ | Mascote, ícone e logotipo |
+| assets/images/ | Mascote, ícone, logotipo e screenshots da documentação |
 
 ## Pacotes
 
@@ -132,6 +148,10 @@ As credenciais também podem ser alteradas em PUT /api/v1/users/me/credentials.
 
 Os clientes Dart leem detail e errors. O aplicativo mostra mensagens temporárias para API indisponível, sessão expirada, campos inválidos, perfil incompleto e falhas da IA.
 
+<p align="center">
+<img src="assets/images/api-unavailable.png" alt="API indisponível" width="240">
+</p>
+
 ## Executando e compilando
 
 ~~~bash
@@ -153,9 +173,3 @@ Exemplos:
 flutter build apk --release --dart-define=API_BASE_URL=https://sua-api.example.com
 flutter build ios --release --dart-define=API_BASE_URL=https://sua-api.example.com
 ~~~
-
-O projeto possui pastas para Android, iOS, macOS, Linux, Windows e web. Os alvos principais são Android e iOS.
-
-## Design
-
-A interface usa fundo claro, tons de verde, cards arredondados, mascote do Fluently, fonte Outfit e transições animadas.

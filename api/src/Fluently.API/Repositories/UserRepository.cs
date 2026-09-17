@@ -55,6 +55,16 @@ public sealed class UserRepository : BaseRepository<UserModel>, IUserRepository
     }
 
     /// <summary>
+    /// Conta os usuários que possuem experiência no ranking.
+    /// </summary>
+    /// <param name="cancellationToken">Token para cancelar a operação.</param>
+    /// <returns>Quantidade de usuários com experiência.</returns>
+    public Task<int> CountLeaderboardAsync(CancellationToken cancellationToken)
+    {
+        return _dbSet.CountAsync(user => user.TotalXp > 0, cancellationToken);
+    }
+
+    /// <summary>
     /// Obtém uma página ordenada por experiência e pela data de criação em caso de empate.
     /// </summary>
     /// <param name="skip">Quantidade de usuários que serão ignorados.</param>
@@ -66,6 +76,7 @@ public sealed class UserRepository : BaseRepository<UserModel>, IUserRepository
                                                                         CancellationToken cancellationToken)
     {
         return await _dbSet.AsNoTracking()
+            .Where(user => user.TotalXp > 0)
             .OrderByDescending(user => user.TotalXp)
             .ThenBy(user => user.CreatedAt)
             .ThenBy(user => user.Id)

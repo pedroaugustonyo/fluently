@@ -34,7 +34,7 @@ public sealed class LeaderboardService : ILeaderboardService
                                                                                   CancellationToken cancellationToken)
     {
         var skip = PaginationHelper.CalculateSkip(request);
-        var totalItems = await _userRepository.CountAsync(cancellationToken);
+        var totalItems = await _userRepository.CountLeaderboardAsync(cancellationToken);
         var users = await _userRepository.GetLeaderboardPageAsync(
             skip,
             request.PageSize,

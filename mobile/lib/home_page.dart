@@ -522,7 +522,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFFF7FCFA),
+    backgroundColor: Colors.white,
     body: SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
@@ -562,24 +562,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
               ),
             ),
             const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: List.generate(6, (index) {
-                final level = index + 1;
-                return ChoiceChip(
-                  label: Text(_levelLabel(level)),
-                  selected: _level == level,
-                  onSelected: (_) => setState(() => _level = level),
-                  selectedColor: const Color(0xFF0BA88B),
-                  labelStyle: TextStyle(
-                    color: _level == level
-                        ? Colors.white
-                        : const Color(0xFF101B31),
-                    fontWeight: FontWeight.w700,
-                  ),
-                );
-              }),
+            _ProficiencySelect(
+              value: _level,
+              enabled: true,
+              onChanged: (level) => setState(() => _level = level),
             ),
             if (_level == null)
               const Padding(

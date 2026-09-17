@@ -18,12 +18,11 @@ public sealed class LeaderboardServiceTests
         var users = new[]
         {
             CreateRankedUser("Ana", "Silva", 90, 1),
-            CreateRankedUser("Bruno", "Souza", 45, 2),
-            CreateRankedUser("Carla", "Lima", 0, 3)
+            CreateRankedUser("Bruno", "Souza", 45, 2)
         };
         userRepository
-            .Setup(repository => repository.CountAsync(cancellationToken))
-            .ReturnsAsync(3);
+            .Setup(repository => repository.CountLeaderboardAsync(cancellationToken))
+            .ReturnsAsync(2);
         userRepository
             .Setup(repository => repository.GetLeaderboardPageAsync(0, 20, cancellationToken))
             .ReturnsAsync(users);
@@ -33,11 +32,11 @@ public sealed class LeaderboardServiceTests
             new PaginationRequestDTO(),
             cancellationToken);
 
-        Assert.Equal(3, response.Items.Count);
+        Assert.Equal(2, response.Items.Count);
         Assert.Equal(1, response.Items[0].Rank);
         Assert.Equal("Ana Silva", response.Items[0].FullName);
         Assert.Equal(90L, response.Items[0].TotalXp);
-        Assert.Equal(0L, response.Items[2].TotalXp);
+        Assert.Equal(45L, response.Items[1].TotalXp);
         Assert.Equal(1, response.TotalPages);
     }
 
@@ -50,7 +49,7 @@ public sealed class LeaderboardServiceTests
             CreateRankedUser("User", "Twelve", 15, 12)
         };
         userRepository
-            .Setup(repository => repository.CountAsync(cancellationToken))
+            .Setup(repository => repository.CountLeaderboardAsync(cancellationToken))
             .ReturnsAsync(12);
         userRepository
             .Setup(repository => repository.GetLeaderboardPageAsync(10, 10, cancellationToken))
@@ -73,7 +72,7 @@ public sealed class LeaderboardServiceTests
     public async Task GetAsync_EmptyLeaderboard_ReturnsEmptyPageMetadata()
     {
         userRepository
-            .Setup(repository => repository.CountAsync(cancellationToken))
+            .Setup(repository => repository.CountLeaderboardAsync(cancellationToken))
             .ReturnsAsync(0);
         userRepository
             .Setup(repository => repository.GetLeaderboardPageAsync(0, 20, cancellationToken))
@@ -91,7 +90,7 @@ public sealed class LeaderboardServiceTests
     public async Task GetAsync_PartialLastPage_RoundsTotalPagesUp()
     {
         userRepository
-            .Setup(repository => repository.CountAsync(cancellationToken))
+            .Setup(repository => repository.CountLeaderboardAsync(cancellationToken))
             .ReturnsAsync(21);
         userRepository
             .Setup(repository => repository.GetLeaderboardPageAsync(0, 20, cancellationToken))

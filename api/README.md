@@ -28,7 +28,7 @@ http://localhost:5229/swagger
 http://localhost:5229/swagger/v1/swagger.json
 ~~~
 
-![Swagger da API](images/swagger-ui.png)
+![Swagger da API](Images/swagger-ui.png)
 
 Para testar rotas protegidas, clique em **Authorize** e informe Bearer SEU_TOKEN_DE_ACESSO.
 
@@ -119,7 +119,6 @@ Resposta 201 Created:
 
 Senha: 8 a 128 caracteres, uma maiúscula, um número e um símbolo. Status: 201, 400, 409.
 
-![Espaço reservado para cadastro](images/register.png)
 
 ### Login — POST /api/v1/auth/login
 
@@ -154,7 +153,6 @@ Resposta 200 OK:
 
 Status: 200, 400, 401.
 
-![Espaço reservado para login](images/login.png)
 
 ## Usuários
 
@@ -168,7 +166,7 @@ Resposta 200 OK:
   "firstName": "Ana",
   "lastName": "Oliveira",
   "email": "ana@example.com",
-  "totalXp": 45,
+  "totalXp": 60,
   "currentStreak": 3,
   "proficiency": 3,
   "bio": "Gosto de música, tecnologia e viagens.",
@@ -193,7 +191,6 @@ Status: 200, 401, 404.
 
 Todos os campos são opcionais. Resposta 200 OK com a estrutura do perfil. Status: 200, 400, 401, 404.
 
-![Espaço reservado para atualização do perfil](images/profile-update.png)
 
 ### Atualizar credenciais — PUT /api/v1/users/me/credentials
 
@@ -255,7 +252,13 @@ Resposta 200 OK:
   "id": "22222222-2222-2222-2222-222222222222",
   "context": "Ana está falando sobre sua viagem.",
   "question": "I ___ to London last year.",
-  "alternatives": [],
+  "alternatives": [
+    { "index": 1, "text": "travel", "translation": "viajo" },
+    { "index": 2, "text": "traveled", "translation": "viajei" },
+    { "index": 3, "text": "travels", "translation": "viaja" },
+    { "index": 4, "text": "traveling", "translation": "viajando" },
+    { "index": 5, "text": "will travel", "translation": "viajarei" }
+  ],
   "questionTranslation": "Eu viajei para Londres no ano passado.",
   "correctAlternative": null,
   "baseXp": 15,
@@ -280,7 +283,13 @@ Exemplo de resposta 201 Created:
   "id": "33333333-3333-3333-3333-333333333333",
   "context": "Ana está falando sobre sua viagem.",
   "question": "I ___ to London last year.",
-  "alternatives": [],
+  "alternatives": [
+    { "index": 1, "text": "travel", "translation": "viajo" },
+    { "index": 2, "text": "traveled", "translation": "viajei" },
+    { "index": 3, "text": "travels", "translation": "viaja" },
+    { "index": 4, "text": "traveling", "translation": "viajando" },
+    { "index": 5, "text": "will travel", "translation": "viajarei" }
+  ],
   "baseXp": 15,
   "createdAt": "2026-09-16T12:12:00+00:00"
 }
@@ -302,8 +311,8 @@ Resposta 201 Created:
 {
   "questionId": "22222222-2222-2222-2222-222222222222",
   "isCorrect": true,
-  "awardedXp": 15,
-  "totalXp": 45,
+  "awardedXp": 30,
+  "totalXp": 60,
   "currentStreak": 3,
   "correctAlternative": {
     "index": 2,
@@ -317,7 +326,6 @@ Resposta 201 Created:
 
 Status: 201, 400, 401, 404, 409.
 
-![Espaço reservado para o fluxo de questões](images/question-flow.png)
 
 ## Ranking
 
@@ -343,7 +351,6 @@ Status: 201, 400, 401, 404, 409.
 
 Status: 200, 400, 401.
 
-![Espaço reservado para o ranking](images/leaderboard.png)
 
 ## Health checks
 
@@ -351,13 +358,11 @@ Status: 200, 400, 401.
 
 Verifica se o processo está em execução, sem testar dependências. Normalmente retorna 200 OK com Healthy.
 
-![Espaço reservado para o health check live](images/health-live.png)
 
 ### Prontidão — GET /health/ready
 
 Verifica as dependências, incluindo PostgreSQL. Retorna 200 OK quando tudo está pronto ou 503 Service Unavailable quando algo está indisponível.
 
-![Espaço reservado para o health check ready](images/health-ready.png)
 
 ## Observações
 

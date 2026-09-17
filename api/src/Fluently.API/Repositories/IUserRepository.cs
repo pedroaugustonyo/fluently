@@ -31,6 +31,13 @@ public interface IUserRepository : IBaseRepository<UserModel>
     Task<int> CountAsync(CancellationToken cancellationToken);
 
     /// <summary>
+    /// Conta os usuários que possuem experiência no ranking.
+    /// </summary>
+    /// <param name="cancellationToken">Token para cancelar a operação.</param>
+    /// <returns>Quantidade de usuários com experiência.</returns>
+    Task<int> CountLeaderboardAsync(CancellationToken cancellationToken);
+
+    /// <summary>
     /// Obtém uma página ordenada por experiência e pela data de criação em caso de empate.
     /// </summary>
     /// <param name="skip">Quantidade de usuários que serão ignorados.</param>
