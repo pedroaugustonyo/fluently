@@ -41,5 +41,5 @@ public enum ProficiencyLevelEnum
     /// Nível proficiente do CEFR.
     /// </summary>
     [Description("C2 - Proficiente.")]
-    C2 = 6
+    C2 = 6,
 }

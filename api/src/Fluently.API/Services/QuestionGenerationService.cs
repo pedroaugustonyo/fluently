@@ -2,23 +2,19 @@ using Fluently.API.DTOs.Questions;
 using Fluently.API.Exceptions;
 using Fluently.API.Helpers;
 using Fluently.API.Models;
-using Fluently.API.Options;
 using Fluently.API.Repositories;
-
-using Microsoft.Extensions.Options;
 
 namespace Fluently.API.Services;
 
 /// <summary>
 /// Geração e validação de questões personalizadas.
 /// </summary>
-public sealed class QuestionGenerationService : IQuestionGenerationService
+public sealed class QuestionGenerationService(
+    ILanguageModelClient languageModelClient,
+    IQuestionRepository questionRepository,
+    ILogger<QuestionGenerationService> logger
+) : IQuestionGenerationService
 {
-    /// <summary>
-    /// Quantidade máxima de tentativas de geração.
-    /// </summary>
-    private const int MaximumGenerationAttempts = 3;
-
     /// <summary>
     /// Quantidade obrigatória de alternativas.
     /// </summary>
@@ -33,47 +29,21 @@ public sealed class QuestionGenerationService : IQuestionGenerationService
         context, question, questionTranslation, alternatives and correctAlternativeIndex.
         context must contain one short Brazilian Portuguese sentence, at most 180 characters, without a label prefix.
         question must contain only one English sentence without a label prefix.
-        questionTranslation must translate the complete question into Brazilian Portuguese and fill the gap with the Portuguese translation of the correct alternative.
+        questionTranslation must translate the complete question into Brazilian Portuguese
+        and fill the gap with the Portuguese translation of the correct alternative.
         Use exactly one ___ sequence in question to represent the missing word.
         Never use a question mark for the missing word.
         alternatives must contain exactly five objects, each with text and translation.
-        text must contain one English word and translation must contain the Portuguese word used in questionTranslation for that alternative.
+        text must contain one English word and translation must contain the Portuguese word
+        used in questionTranslation for that alternative.
         correctAlternativeIndex must be an index from 1 to 5 for the alternative that completes the sentence correctly.
         When the learner biography contains multiple distinct interests, treat them as an ordered topic list.
-        Use the question sequence number to select the topic at position ((sequence number - 1) modulo topic count), so consecutive questions rotate through every interest instead of repeatedly using the same one.
+        Use the question sequence number to select the topic at position
+        ((sequence number - 1) modulo topic count), so consecutive questions rotate
+        through every interest instead of repeatedly using the same one.
         Use only the selected topic as the theme for the context and question, and never mention the rotation.
         Do not include personal data, explanations, or additional fields.
         """;
-
-    /// <summary>
-    /// Cliente do modelo de linguagem.
-    /// </summary>
-    private readonly ILanguageModelClient _languageModelClient;
-
-    /// <summary>
-    /// Repositório de questões.
-    /// </summary>
-    private readonly IQuestionRepository _questionRepository;
-
-    /// <summary>
-    /// Configurações da OpenAI.
-    /// </summary>
-    private readonly IOptions<OpenAIOptions> _openAIOptions;
-
-    /// <summary>
-    /// Inicializa uma nova instância do serviço de geração de questões.
-    /// </summary>
-    /// <param name="languageModelClient">Cliente utilizado para gerar as questões.</param>
-    /// <param name="questionRepository">Repositório utilizado para validar contextos únicos.</param>
-    /// <param name="openAIOptions">Configurações utilizadas na geração pelo modelo.</param>
-    public QuestionGenerationService(ILanguageModelClient languageModelClient,
-                                     IQuestionRepository questionRepository,
-                                     IOptions<OpenAIOptions> openAIOptions)
-    {
-        _languageModelClient = languageModelClient;
-        _questionRepository = questionRepository;
-        _openAIOptions = openAIOptions;
-    }
 
     /// <summary>
     /// Gera uma questão de acordo com o perfil atual do estudante.
@@ -83,27 +53,24 @@ public sealed class QuestionGenerationService : IQuestionGenerationService
     /// <returns>Questão gerada e validada.</returns>
     public async Task<GeneratedQuestionDTO> GenerateAsync(UserModel user, CancellationToken cancellationToken)
     {
-        var questionCount = await _questionRepository.CountByUserAsync(user.Id, cancellationToken);
+        var questionCount = await questionRepository.CountByUserAsync(user.Id, null, cancellationToken);
         var userPrompt = BuildUserPrompt(user, questionCount + 1);
 
-        for (var attempt = 1; attempt <= MaximumGenerationAttempts; attempt++)
-        {
-            var output = await _languageModelClient
-                .GetStructuredResponseAsync<QuestionGenerationOutputDTO>(
-                    SystemPrompt,
-                    userPrompt,
-                    _openAIOptions.Value.GenerationTemperature,
-                    cancellationToken);
-            var generatedQuestion = await ValidateOutputAsync(user.Id, output, cancellationToken);
+        var output = await languageModelClient.GetStructuredResponseAsync<QuestionGenerationOutputDTO>(
+            SystemPrompt,
+            userPrompt,
+            cancellationToken
+        );
+        var generatedQuestion = await ValidateOutputAsync(user.Id, output, cancellationToken);
 
-            if (generatedQuestion is not null)
-            {
-                return generatedQuestion;
-            }
+        if (generatedQuestion is not null)
+        {
+            return generatedQuestion;
         }
 
         throw new ServiceUnavailableException(
-            "Não foi possível gerar uma nova questão agora. Tente novamente em instantes.");
+            "Não foi possível gerar uma nova questão agora. Tente novamente em instantes."
+        );
     }
 
     /// <summary>
@@ -113,29 +80,42 @@ public sealed class QuestionGenerationService : IQuestionGenerationService
     /// <param name="output">Saída estruturada retornada pelo modelo.</param>
     /// <param name="cancellationToken">Token para cancelar a operação.</param>
     /// <returns>Questão validada ou valor nulo quando a saída deve ser descartada.</returns>
-    private async Task<GeneratedQuestionDTO?> ValidateOutputAsync(Guid userId,
-                                                                  QuestionGenerationOutputDTO output,
-                                                                  CancellationToken cancellationToken)
+    private async Task<GeneratedQuestionDTO?> ValidateOutputAsync(
+        Guid userId,
+        QuestionGenerationOutputDTO output,
+        CancellationToken cancellationToken
+    )
     {
         var context = output.Context.Trim();
         var question = output.Question.Trim();
-        var questionTranslation = output.QuestionTranslation.Trim();
         var alternatives = output.Alternatives.Select(MapAlternative).ToArray();
+        var questionTranslation = NormalizeQuestionTranslation(
+            output.QuestionTranslation,
+            alternatives,
+            output.CorrectAlternativeIndex
+        );
 
-        if (!IsValidOutput(context,
-                           question,
-                           questionTranslation,
-                           alternatives,
-                           output.CorrectAlternativeIndex))
+        if (!IsValidOutput(context, question, questionTranslation, alternatives, output.CorrectAlternativeIndex))
         {
+            logger.LogWarning(
+                "Discarding invalid generated question. UserId: {UserId}, Context: {Context}, Question: {Question}, Translation: {Translation}, CorrectAlternativeIndex: {CorrectAlternativeIndex}, Alternatives: {@Alternatives}",
+                userId,
+                context,
+                question,
+                questionTranslation,
+                output.CorrectAlternativeIndex,
+                alternatives
+            );
+
             return null;
         }
 
         var fingerprint = ContextFingerprintHelper.Create(context);
-        var alreadyExists = await _questionRepository.ExistsContextFingerprintAsync(
+        var alreadyExists = await questionRepository.ExistsContextFingerprintAsync(
             userId,
             fingerprint,
-            cancellationToken);
+            cancellationToken
+        );
 
         if (alreadyExists)
         {
@@ -147,9 +127,11 @@ public sealed class QuestionGenerationService : IQuestionGenerationService
             .OrderBy(_ => Random.Shared.Next())
             .ToArray();
 
-        var correctAlternativeIndex = Array.FindIndex(
-            shuffledAlternatives,
-            alternative => alternative.OriginalIndex == output.CorrectAlternativeIndex) + 1;
+        var correctAlternativeIndex =
+            Array.FindIndex(
+                shuffledAlternatives,
+                alternative => alternative.OriginalIndex == output.CorrectAlternativeIndex
+            ) + 1;
 
         return new GeneratedQuestionDTO
         {
@@ -158,8 +140,28 @@ public sealed class QuestionGenerationService : IQuestionGenerationService
             QuestionTranslation = questionTranslation,
             Alternatives = shuffledAlternatives.Select(item => item.Alternative).ToArray(),
             CorrectAlternativeIndex = correctAlternativeIndex,
-            ContextFingerprint = fingerprint
+            ContextFingerprint = fingerprint,
         };
+    }
+
+    private static string NormalizeQuestionTranslation(
+        string questionTranslation,
+        IReadOnlyList<QuestionAlternativeOutputDTO> alternatives,
+        int correctAlternativeIndex
+    )
+    {
+        var normalizedTranslation = questionTranslation.Trim();
+
+        if (correctAlternativeIndex < 1 || correctAlternativeIndex > alternatives.Count)
+        {
+            return normalizedTranslation;
+        }
+
+        return normalizedTranslation.Replace(
+            "___",
+            alternatives[correctAlternativeIndex - 1].Translation,
+            StringComparison.Ordinal
+        );
     }
 
     /// <summary>
@@ -172,7 +174,7 @@ public sealed class QuestionGenerationService : IQuestionGenerationService
         return new QuestionAlternativeOutputDTO
         {
             Text = alternative.Text.Trim(),
-            Translation = alternative.Translation.Trim()
+            Translation = alternative.Translation.Trim(),
         };
     }
 
@@ -185,19 +187,22 @@ public sealed class QuestionGenerationService : IQuestionGenerationService
     /// <param name="alternatives">Alternativas geradas.</param>
     /// <param name="correctAlternativeIndex">Índice correto gerado.</param>
     /// <returns>Valor que indica se a saída é válida.</returns>
-    private static bool IsValidOutput(string context,
-                                      string question,
-                                      string questionTranslation,
-                                      IReadOnlyList<QuestionAlternativeOutputDTO> alternatives,
-                                      int correctAlternativeIndex)
+    private static bool IsValidOutput(
+        string context,
+        string question,
+        string questionTranslation,
+        IReadOnlyList<QuestionAlternativeOutputDTO> alternatives,
+        int correctAlternativeIndex
+    )
     {
-        return HasValidContext(context) &&
-               HasValidQuestion(question) &&
-               HasValidTranslation(questionTranslation) &&
-               HasValidAlternatives(alternatives, correctAlternativeIndex) &&
-               questionTranslation.Contains(
-                   alternatives[correctAlternativeIndex - 1].Translation,
-                   StringComparison.OrdinalIgnoreCase);
+        return HasValidContext(context)
+            && HasValidQuestion(question)
+            && HasValidTranslation(questionTranslation)
+            && HasValidAlternatives(alternatives, correctAlternativeIndex)
+            && questionTranslation.Contains(
+                alternatives[correctAlternativeIndex - 1].Translation,
+                StringComparison.OrdinalIgnoreCase
+            );
     }
 
     /// <summary>
@@ -207,9 +212,9 @@ public sealed class QuestionGenerationService : IQuestionGenerationService
     /// <returns>Valor que indica se o contexto é válido.</returns>
     private static bool HasValidContext(string context)
     {
-        return !string.IsNullOrWhiteSpace(context) &&
-               context.Length <= 180 &&
-               !context.StartsWith("Contexto:", StringComparison.OrdinalIgnoreCase);
+        return !string.IsNullOrWhiteSpace(context)
+            && context.Length <= 180
+            && !context.StartsWith("Contexto:", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -219,11 +224,11 @@ public sealed class QuestionGenerationService : IQuestionGenerationService
     /// <returns>Valor que indica se a frase é válida.</returns>
     private static bool HasValidQuestion(string question)
     {
-        return !string.IsNullOrWhiteSpace(question) &&
-               question.Length <= 500 &&
-               question.Split("___", StringSplitOptions.None).Length == 2 &&
-               !question.Contains('?') &&
-               !question.StartsWith("Frase:", StringComparison.OrdinalIgnoreCase);
+        return !string.IsNullOrWhiteSpace(question)
+            && question.Length <= 500
+            && question.Split("___", StringSplitOptions.None).Length == 2
+            && !question.Contains('?')
+            && !question.StartsWith("Frase:", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -242,24 +247,30 @@ public sealed class QuestionGenerationService : IQuestionGenerationService
     /// <param name="alternatives">Alternativas que serão verificadas.</param>
     /// <param name="correctAlternativeIndex">Índice correto que será verificado.</param>
     /// <returns>Valor que indica se as alternativas são válidas.</returns>
-    private static bool HasValidAlternatives(IReadOnlyList<QuestionAlternativeOutputDTO> alternatives,
-                                             int correctAlternativeIndex)
+    private static bool HasValidAlternatives(
+        IReadOnlyList<QuestionAlternativeOutputDTO> alternatives,
+        int correctAlternativeIndex
+    )
     {
-        if (alternatives.Count != RequiredAlternativeCount ||
-            correctAlternativeIndex is < 1 or > RequiredAlternativeCount)
+        if (
+            alternatives.Count != RequiredAlternativeCount
+            || correctAlternativeIndex is < 1 or > RequiredAlternativeCount
+        )
         {
             return false;
         }
 
-        if (alternatives.Any(alternative => !IsSingleWord(alternative.Text) ||
-                                            !HasValidWordTranslation(alternative.Translation)))
+        if (
+            alternatives.Any(alternative =>
+                !IsSingleWord(alternative.Text) || !HasValidWordTranslation(alternative.Translation)
+            )
+        )
         {
             return false;
         }
 
-        return alternatives.Select(alternative => alternative.Text)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Count() == RequiredAlternativeCount;
+        return alternatives.Select(alternative => alternative.Text).Distinct(StringComparer.OrdinalIgnoreCase).Count()
+            == RequiredAlternativeCount;
     }
 
     /// <summary>
@@ -269,9 +280,7 @@ public sealed class QuestionGenerationService : IQuestionGenerationService
     /// <returns>Valor que indica se o texto possui somente uma palavra.</returns>
     private static bool IsSingleWord(string value)
     {
-        return !string.IsNullOrWhiteSpace(value) &&
-               value.Length <= 100 &&
-               !value.Any(char.IsWhiteSpace);
+        return !string.IsNullOrWhiteSpace(value) && value.Length <= 100 && !value.Any(char.IsWhiteSpace);
     }
 
     /// <summary>

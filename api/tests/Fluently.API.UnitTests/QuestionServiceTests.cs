@@ -4,9 +4,7 @@ using Fluently.API.Exceptions;
 using Fluently.API.Models;
 using Fluently.API.Repositories;
 using Fluently.API.Services;
-
 using Microsoft.Extensions.Logging.Abstractions;
-
 using Moq;
 
 namespace Fluently.API.UnitTests;
@@ -24,7 +22,8 @@ public sealed class QuestionServiceTests
     {
         var question = TestData.CreateQuestion();
         SetCurrentUser(question.UserId);
-        questionRepository.Setup(repository => repository.GetCurrentAsync(question.UserId, cancellationToken))
+        questionRepository
+            .Setup(repository => repository.GetCurrentAsync(question.UserId, cancellationToken))
             .ReturnsAsync(question);
 
         var response = await CreateService().GetCurrentAsync(cancellationToken);
@@ -42,12 +41,14 @@ public sealed class QuestionServiceTests
         var answeredQuestion = CreateAnsweredQuestion(false);
         answeredQuestion.Id = Guid.NewGuid();
         SetCurrentUser(pendingQuestion.UserId);
-        questionRepository.Setup(repository => repository.CountByUserAsync(pendingQuestion.UserId, cancellationToken))
+        questionRepository
+            .Setup(repository => repository.CountByUserAsync(pendingQuestion.UserId, null, cancellationToken))
             .ReturnsAsync(2);
-        questionRepository.Setup(repository => repository.GetPageByUserAsync(pendingQuestion.UserId, 0, 20, cancellationToken))
+        questionRepository
+            .Setup(repository => repository.GetPageByUserAsync(pendingQuestion.UserId, 0, 20, null, cancellationToken))
             .ReturnsAsync([pendingQuestion, answeredQuestion]);
 
-        var response = await CreateService().GetAllAsync(new PaginationRequestDTO(), cancellationToken);
+        var response = await CreateService().PaginateAsync(new PaginationRequestDTO(), cancellationToken);
 
         Assert.Equal(2, response.TotalItems);
         Assert.Null(response.Items[0].CorrectAlternative);
@@ -65,7 +66,9 @@ public sealed class QuestionServiceTests
         SetCurrentUser(user.Id);
         userRepository.Setup(repository => repository.GetByIdAsync(user.Id, cancellationToken)).ReturnsAsync(user);
 
-        var exception = await Assert.ThrowsAsync<BadRequestException>(() => CreateService().CreateAsync(cancellationToken));
+        var exception = await Assert.ThrowsAsync<BadRequestException>(() =>
+            CreateService().CreateAsync(cancellationToken)
+        );
 
         Assert.Equal("Preencha seu nível de proficiência e biografia antes de gerar uma questão.", exception.Detail);
     }
@@ -76,10 +79,13 @@ public sealed class QuestionServiceTests
         var user = TestData.CreateUser();
         SetCurrentUser(user.Id);
         userRepository.Setup(repository => repository.GetByIdAsync(user.Id, cancellationToken)).ReturnsAsync(user);
-        questionRepository.Setup(repository => repository.GetCurrentAsync(user.Id, cancellationToken))
+        questionRepository
+            .Setup(repository => repository.GetCurrentAsync(user.Id, cancellationToken))
             .ReturnsAsync(TestData.CreateQuestion(user));
 
-        var exception = await Assert.ThrowsAsync<ConflictException>(() => CreateService().CreateAsync(cancellationToken));
+        var exception = await Assert.ThrowsAsync<ConflictException>(() =>
+            CreateService().CreateAsync(cancellationToken)
+        );
 
         Assert.Equal("Responda a questão atual antes de solicitar uma nova questão.", exception.Detail);
     }
@@ -91,11 +97,14 @@ public sealed class QuestionServiceTests
         QuestionModel? savedQuestion = null;
         SetCurrentUser(user.Id);
         userRepository.Setup(repository => repository.GetByIdAsync(user.Id, cancellationToken)).ReturnsAsync(user);
-        questionRepository.Setup(repository => repository.GetCurrentAsync(user.Id, cancellationToken))
+        questionRepository
+            .Setup(repository => repository.GetCurrentAsync(user.Id, cancellationToken))
             .ReturnsAsync((QuestionModel?)null);
-        generationService.Setup(service => service.GenerateAsync(user, cancellationToken))
+        generationService
+            .Setup(service => service.GenerateAsync(user, cancellationToken))
             .ReturnsAsync(CreateGeneratedQuestion());
-        questionRepository.Setup(repository => repository.AddAsync(It.IsAny<QuestionModel>(), cancellationToken))
+        questionRepository
+            .Setup(repository => repository.AddAsync(It.IsAny<QuestionModel>(), cancellationToken))
             .Callback<QuestionModel, CancellationToken>((question, _) => savedQuestion = question)
             .Returns(Task.CompletedTask);
         questionRepository.Setup(repository => repository.SaveChangesAsync(cancellationToken)).ReturnsAsync(1);
@@ -117,10 +126,12 @@ public sealed class QuestionServiceTests
         SetupOwnedQuestion(question);
         questionRepository.Setup(repository => repository.SaveChangesAsync(cancellationToken)).ReturnsAsync(1);
 
-        var response = await CreateService().SubmitAnswerAsync(
-            question.Id,
-            new SubmitQuestionAnswerRequestDTO { AlternativeIndex = 1 },
-            cancellationToken);
+        var response = await CreateService()
+            .SubmitAnswerAsync(
+                question.Id,
+                new SubmitQuestionAnswerRequestDTO { AlternativeIndex = 1 },
+                cancellationToken
+            );
 
         Assert.True(response.IsCorrect);
         Assert.Equal(15, response.AwardedXp);
@@ -138,10 +149,12 @@ public sealed class QuestionServiceTests
         SetupOwnedQuestion(question);
         questionRepository.Setup(repository => repository.SaveChangesAsync(cancellationToken)).ReturnsAsync(1);
 
-        var response = await CreateService().SubmitAnswerAsync(
-            question.Id,
-            new SubmitQuestionAnswerRequestDTO { AlternativeIndex = 1 },
-            cancellationToken);
+        var response = await CreateService()
+            .SubmitAnswerAsync(
+                question.Id,
+                new SubmitQuestionAnswerRequestDTO { AlternativeIndex = 1 },
+                cancellationToken
+            );
 
         Assert.True(response.IsCorrect);
         Assert.Equal(30, response.AwardedXp);
@@ -157,10 +170,12 @@ public sealed class QuestionServiceTests
         SetupOwnedQuestion(question);
         questionRepository.Setup(repository => repository.SaveChangesAsync(cancellationToken)).ReturnsAsync(1);
 
-        var response = await CreateService().SubmitAnswerAsync(
-            question.Id,
-            new SubmitQuestionAnswerRequestDTO { AlternativeIndex = 1 },
-            cancellationToken);
+        var response = await CreateService()
+            .SubmitAnswerAsync(
+                question.Id,
+                new SubmitQuestionAnswerRequestDTO { AlternativeIndex = 1 },
+                cancellationToken
+            );
 
         Assert.True(response.IsCorrect);
         Assert.Equal(15, response.AwardedXp);
@@ -177,10 +192,12 @@ public sealed class QuestionServiceTests
         SetupOwnedQuestion(question);
         questionRepository.Setup(repository => repository.SaveChangesAsync(cancellationToken)).ReturnsAsync(1);
 
-        var response = await CreateService().SubmitAnswerAsync(
-            question.Id,
-            new SubmitQuestionAnswerRequestDTO { AlternativeIndex = 2 },
-            cancellationToken);
+        var response = await CreateService()
+            .SubmitAnswerAsync(
+                question.Id,
+                new SubmitQuestionAnswerRequestDTO { AlternativeIndex = 2 },
+                cancellationToken
+            );
 
         Assert.False(response.IsCorrect);
         Assert.Equal(0, response.AwardedXp);
@@ -191,8 +208,14 @@ public sealed class QuestionServiceTests
 
     private QuestionService CreateService()
     {
-        return new QuestionService(currentUserService.Object, userRepository.Object, questionRepository.Object,
-            generationService.Object, NullLogger<QuestionService>.Instance);
+        return new QuestionService(
+            currentUserService.Object,
+            userRepository.Object,
+            questionRepository.Object,
+            generationService.Object,
+            NullLogger<QuestionService>.Instance,
+            new FixedTimeProvider(TestData.Now)
+        );
     }
 
     private void SetCurrentUser(Guid userId)
@@ -203,7 +226,8 @@ public sealed class QuestionServiceTests
     private void SetupOwnedQuestion(QuestionModel question)
     {
         SetCurrentUser(question.UserId);
-        questionRepository.Setup(repository => repository.GetOwnedAsync(question.Id, question.UserId, cancellationToken))
+        questionRepository
+            .Setup(repository => repository.GetOwnedAsync(question.Id, question.UserId, cancellationToken))
             .ReturnsAsync(question);
     }
 
@@ -220,10 +244,10 @@ public sealed class QuestionServiceTests
                 new QuestionAlternativeOutputDTO { Text = "practice", Translation = "praticar" },
                 new QuestionAlternativeOutputDTO { Text = "speak", Translation = "falar" },
                 new QuestionAlternativeOutputDTO { Text = "read", Translation = "ler" },
-                new QuestionAlternativeOutputDTO { Text = "write", Translation = "escrever" }
+                new QuestionAlternativeOutputDTO { Text = "write", Translation = "escrever" },
             ],
             CorrectAlternativeIndex = 1,
-            ContextFingerprint = "HASH"
+            ContextFingerprint = "HASH",
         };
     }
 

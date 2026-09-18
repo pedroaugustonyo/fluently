@@ -79,5 +79,4 @@ public sealed class QuestionModel : BaseModel
     /// Data da resposta.
     /// </summary>
     public DateTimeOffset? AnsweredAt { get; set; }
-
 }

@@ -15,12 +15,8 @@ public sealed class TrimStringJsonConverterHelper : JsonConverter<string>
     /// <param name="typeToConvert">Tipo que será convertido.</param>
     /// <param name="options">Opções utilizadas na desserialização.</param>
     /// <returns>Texto sem espaços externos ou valor nulo.</returns>
-    public override string? Read(ref Utf8JsonReader reader,
-                                 Type typeToConvert,
-                                 JsonSerializerOptions options) =>
-        reader.TokenType == JsonTokenType.Null
-            ? null
-            : reader.GetString()?.Trim();
+    public override string? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
+        reader.TokenType == JsonTokenType.Null ? null : reader.GetString()?.Trim();
 
     /// <summary>
     /// Escreve um valor textual no conteúdo JSON.

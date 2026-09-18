@@ -32,6 +32,12 @@ public interface IBaseRepository<TModel>
     void Update(TModel model);
 
     /// <summary>
+    /// Marca uma entidade para remoção do contexto de persistência.
+    /// </summary>
+    /// <param name="model">Entidade que será removida.</param>
+    void Remove(TModel model);
+
+    /// <summary>
     /// Persiste as alterações pendentes no banco de dados.
     /// </summary>
     /// <param name="cancellationToken">Token para cancelar a operação.</param>

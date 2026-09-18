@@ -5,9 +5,7 @@ using Fluently.API.DTOs.Questions;
 using Fluently.API.DTOs.Users;
 using Fluently.API.Enums;
 using Fluently.API.Services;
-
 using Microsoft.AspNetCore.Mvc;
-
 using Moq;
 
 namespace Fluently.API.UnitTests;
@@ -24,13 +22,11 @@ public sealed class AuthControllerTests
             LastName = "Oliveira",
             Email = "pedro@example.com",
             Password = "Valid123!",
-            PasswordConfirmation = "Valid123!"
+            PasswordConfirmation = "Valid123!",
         };
         var response = CreateCreateUserResponse();
         using var cancellationSource = new CancellationTokenSource();
-        service
-            .Setup(candidate => candidate.RegisterAsync(request, cancellationSource.Token))
-            .ReturnsAsync(response);
+        service.Setup(candidate => candidate.RegisterAsync(request, cancellationSource.Token)).ReturnsAsync(response);
         var controller = new AuthController(service.Object);
 
         var action = await controller.RegisterAsync(request, cancellationSource.Token);
@@ -44,22 +40,16 @@ public sealed class AuthControllerTests
     public async Task LoginAsync_ValidRequest_ReturnsOkAndForwardsCancellation()
     {
         var service = new Mock<IAuthService>();
-        var request = new LoginUserRequestDTO
-        {
-            Email = "pedro@example.com",
-            Password = "Valid123!"
-        };
+        var request = new LoginUserRequestDTO { Email = "pedro@example.com", Password = "Valid123!" };
         var response = new LoginUserResponseDTO
         {
             AccessToken = "token",
             TokenType = "Bearer",
             ExpiresAt = TestData.Now.AddHours(1),
-            User = CreateLoginUserDetailsResponse()
+            User = CreateLoginUserDetailsResponse(),
         };
         using var cancellationSource = new CancellationTokenSource();
-        service
-            .Setup(candidate => candidate.LoginAsync(request, cancellationSource.Token))
-            .ReturnsAsync(response);
+        service.Setup(candidate => candidate.LoginAsync(request, cancellationSource.Token)).ReturnsAsync(response);
         var controller = new AuthController(service.Object);
 
         var action = await controller.LoginAsync(request, cancellationSource.Token);
@@ -80,7 +70,7 @@ public sealed class AuthControllerTests
             TotalXp = 0,
             CurrentStreak = 0,
             Proficiency = ProficiencyLevelEnum.A1,
-            CreatedAt = TestData.Now
+            CreatedAt = TestData.Now,
         };
     }
 
@@ -93,7 +83,7 @@ public sealed class AuthControllerTests
             LastName = "Oliveira",
             Email = "pedro@example.com",
             Proficiency = ProficiencyLevelEnum.A1,
-            CreatedAt = TestData.Now
+            CreatedAt = TestData.Now,
         };
     }
 }
@@ -108,9 +98,7 @@ public sealed class UsersControllerTests
         var service = new Mock<IUserService>();
         var response = CreateGetUserResponse();
         using var cancellationSource = new CancellationTokenSource();
-        service
-            .Setup(candidate => candidate.GetCurrentAsync(cancellationSource.Token))
-            .ReturnsAsync(response);
+        service.Setup(candidate => candidate.GetCurrentAsync(cancellationSource.Token)).ReturnsAsync(response);
         var controller = new UsersController(service.Object);
 
         var action = await controller.GetCurrentAsync(cancellationSource.Token);
@@ -129,7 +117,7 @@ public sealed class UsersControllerTests
             FirstName = "Pedro",
             LastName = "Oliveira",
             Proficiency = ProficiencyLevelEnum.A2,
-            Bio = "Quero praticar para uma viagem."
+            Bio = "Quero praticar para uma viagem.",
         };
         var response = CreateUpdateUserResponse();
         using var cancellationSource = new CancellationTokenSource();
@@ -153,7 +141,7 @@ public sealed class UsersControllerTests
         {
             Email = "updated@example.com",
             Password = "Updated123!",
-            PasswordConfirmation = "Updated123!"
+            PasswordConfirmation = "Updated123!",
         };
         using var cancellationSource = new CancellationTokenSource();
         service
@@ -179,7 +167,7 @@ public sealed class UsersControllerTests
             CurrentStreak = 0,
             Proficiency = ProficiencyLevelEnum.A2,
             Bio = "Quero praticar para uma viagem.",
-            CreatedAt = TestData.Now
+            CreatedAt = TestData.Now,
         };
     }
 
@@ -193,7 +181,7 @@ public sealed class UsersControllerTests
             Email = "pedro@example.com",
             Proficiency = ProficiencyLevelEnum.A2,
             Bio = "Quero praticar para uma viagem.",
-            CreatedAt = TestData.Now
+            CreatedAt = TestData.Now,
         };
     }
 }
@@ -206,9 +194,7 @@ public sealed class QuestionsControllerTests
         var service = new Mock<IQuestionService>();
         var response = CreateQuestionResponse();
         using var cancellationSource = new CancellationTokenSource();
-        service
-            .Setup(candidate => candidate.GetCurrentAsync(cancellationSource.Token))
-            .ReturnsAsync(response);
+        service.Setup(candidate => candidate.GetCurrentAsync(cancellationSource.Token)).ReturnsAsync(response);
         var controller = new QuestionsController(service.Object);
 
         var action = await controller.GetCurrentAsync(cancellationSource.Token);
@@ -224,9 +210,7 @@ public sealed class QuestionsControllerTests
         var service = new Mock<IQuestionService>();
         var response = CreateQuestionResponse();
         using var cancellationSource = new CancellationTokenSource();
-        service
-            .Setup(candidate => candidate.CreateAsync(cancellationSource.Token))
-            .ReturnsAsync(response);
+        service.Setup(candidate => candidate.CreateAsync(cancellationSource.Token)).ReturnsAsync(response);
         var controller = new QuestionsController(service.Object);
 
         var action = await controller.CreateAsync(cancellationSource.Token);
@@ -248,15 +232,13 @@ public sealed class QuestionsControllerTests
             Page = 1,
             PageSize = 20,
             TotalItems = 1,
-            TotalPages = 1
+            TotalPages = 1,
         };
         using var cancellationSource = new CancellationTokenSource();
-        service
-            .Setup(candidate => candidate.GetAllAsync(request, cancellationSource.Token))
-            .ReturnsAsync(response);
+        service.Setup(candidate => candidate.PaginateAsync(request, cancellationSource.Token)).ReturnsAsync(response);
         var controller = new QuestionsController(service.Object);
 
-        var action = await controller.GetAllAsync(request, cancellationSource.Token);
+        var action = await controller.PaginateAsync(request, cancellationSource.Token);
         var result = Assert.IsType<OkObjectResult>(action.Result);
 
         Assert.Same(response, result.Value);
@@ -298,24 +280,18 @@ public sealed class QuestionsControllerTests
             {
                 Index = 1,
                 Text = "study",
-                Translation = "estudar"
+                Translation = "estudar",
             },
             QuestionTranslation = "Eu estudo inglês todos os dias.",
-            AnsweredAt = TestData.Now
+            AnsweredAt = TestData.Now,
         };
         using var cancellationSource = new CancellationTokenSource();
         service
-            .Setup(candidate => candidate.SubmitAnswerAsync(
-                questionId,
-                request,
-                cancellationSource.Token))
+            .Setup(candidate => candidate.SubmitAnswerAsync(questionId, request, cancellationSource.Token))
             .ReturnsAsync(response);
         var controller = new QuestionsController(service.Object);
 
-        var action = await controller.SubmitAnswerAsync(
-            questionId,
-            request,
-            cancellationSource.Token);
+        var action = await controller.SubmitAnswerAsync(questionId, request, cancellationSource.Token);
         var result = Assert.IsType<CreatedResult>(action.Result);
 
         Assert.Equal($"/api/v1/questions/{questionId}", result.Location);
@@ -332,7 +308,7 @@ public sealed class QuestionsControllerTests
             Question = "I ? English every day.",
             Alternatives = CreateAlternatives(),
             BaseXp = 15,
-            CreatedAt = TestData.Now
+            CreatedAt = TestData.Now,
         };
     }
 
@@ -351,7 +327,7 @@ public sealed class QuestionsControllerTests
             IsCorrect = true,
             AwardedXp = 15,
             CreatedAt = TestData.Now,
-            AnsweredAt = TestData.Now
+            AnsweredAt = TestData.Now,
         };
     }
 
@@ -359,11 +335,36 @@ public sealed class QuestionsControllerTests
     {
         return
         [
-            new QuestionAlternativeResponseDTO { Index = 1, Text = "study", Translation = "estudar" },
-            new QuestionAlternativeResponseDTO { Index = 2, Text = "practice", Translation = "praticar" },
-            new QuestionAlternativeResponseDTO { Index = 3, Text = "speak", Translation = "falar" },
-            new QuestionAlternativeResponseDTO { Index = 4, Text = "read", Translation = "ler" },
-            new QuestionAlternativeResponseDTO { Index = 5, Text = "write", Translation = "escrever" }
+            new QuestionAlternativeResponseDTO
+            {
+                Index = 1,
+                Text = "study",
+                Translation = "estudar",
+            },
+            new QuestionAlternativeResponseDTO
+            {
+                Index = 2,
+                Text = "practice",
+                Translation = "praticar",
+            },
+            new QuestionAlternativeResponseDTO
+            {
+                Index = 3,
+                Text = "speak",
+                Translation = "falar",
+            },
+            new QuestionAlternativeResponseDTO
+            {
+                Index = 4,
+                Text = "read",
+                Translation = "ler",
+            },
+            new QuestionAlternativeResponseDTO
+            {
+                Index = 5,
+                Text = "write",
+                Translation = "escrever",
+            },
         ];
     }
 }
@@ -381,15 +382,13 @@ public sealed class LeaderboardControllerTests
             Page = 2,
             PageSize = 10,
             TotalItems = 0,
-            TotalPages = 0
+            TotalPages = 0,
         };
         using var cancellationSource = new CancellationTokenSource();
-        service
-            .Setup(candidate => candidate.GetAsync(request, cancellationSource.Token))
-            .ReturnsAsync(response);
+        service.Setup(candidate => candidate.PaginateAsync(request, cancellationSource.Token)).ReturnsAsync(response);
         var controller = new LeaderboardController(service.Object);
 
-        var action = await controller.GetAsync(request, cancellationSource.Token);
+        var action = await controller.PaginateAsync(request, cancellationSource.Token);
         var result = Assert.IsType<OkObjectResult>(action.Result);
 
         Assert.Same(response, result.Value);

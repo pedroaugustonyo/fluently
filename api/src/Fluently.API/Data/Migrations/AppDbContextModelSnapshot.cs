@@ -117,6 +117,45 @@ namespace Fluently.API.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Fluently.API.Models.TaskModel", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly?>("DueDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "IsCompleted", "DueDate");
+
+                    b.ToTable("Tasks");
+                });
+
             modelBuilder.Entity("Fluently.API.Models.UserModel", b =>
                 {
                     b.Property<Guid>("Id")
@@ -135,6 +174,9 @@ namespace Fluently.API.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasDefaultValue(0);
+
+                    b.Property<int?>("DailyXpGoal")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -202,9 +244,22 @@ namespace Fluently.API.Data.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Fluently.API.Models.TaskModel", b =>
+                {
+                    b.HasOne("Fluently.API.Models.UserModel", "User")
+                        .WithMany("Tasks")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Fluently.API.Models.UserModel", b =>
                 {
                     b.Navigation("Questions");
+
+                    b.Navigation("Tasks");
                 });
 #pragma warning restore 612, 618
         }

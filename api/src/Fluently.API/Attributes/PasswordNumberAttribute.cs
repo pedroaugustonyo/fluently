@@ -6,16 +6,8 @@ namespace Fluently.API.Attributes;
 /// Validação de número em senhas.
 /// </summary>
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter)]
-public sealed class PasswordNumberAttribute : ValidationAttribute
+public sealed class PasswordNumberAttribute() : ValidationAttribute("A senha deve conter pelo menos um número.")
 {
-    /// <summary>
-    /// Inicializa a validação de número da senha.
-    /// </summary>
-    public PasswordNumberAttribute()
-        : base("A senha deve conter pelo menos um número.")
-    {
-    }
-
     /// <summary>
     /// Verifica se o valor contém pelo menos um número.
     /// </summary>

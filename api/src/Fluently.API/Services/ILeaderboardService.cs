@@ -14,6 +14,8 @@ public interface ILeaderboardService
     /// <param name="request">Parâmetros de paginação da consulta.</param>
     /// <param name="cancellationToken">Token para cancelar a operação.</param>
     /// <returns>Página com as posições do ranking.</returns>
-    Task<PaginatedResponseDTO<LeaderboardEntryResponseDTO>> GetAsync(PaginationRequestDTO request,
-                                                                     CancellationToken cancellationToken);
+    Task<PaginatedResponseDTO<LeaderboardEntryResponseDTO>> PaginateAsync(
+        PaginationRequestDTO request,
+        CancellationToken cancellationToken
+    );
 }

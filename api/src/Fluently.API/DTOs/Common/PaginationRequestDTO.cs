@@ -18,4 +18,10 @@ public sealed class PaginationRequestDTO
     /// </summary>
     [Range(1, 100, ErrorMessage = "A quantidade por página deve estar entre 1 e 100.")]
     public int PageSize { get; init; } = 20;
+
+    /// <summary>
+    /// Termo usado para filtrar a coleção, quando suportado.
+    /// </summary>
+    [StringLength(120, ErrorMessage = "A busca deve ter no máximo 120 caracteres.")]
+    public string? Search { get; init; }
 }

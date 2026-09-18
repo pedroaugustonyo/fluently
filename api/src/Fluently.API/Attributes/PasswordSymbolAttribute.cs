@@ -6,16 +6,8 @@ namespace Fluently.API.Attributes;
 /// Validação de símbolo em senhas.
 /// </summary>
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter)]
-public sealed class PasswordSymbolAttribute : ValidationAttribute
+public sealed class PasswordSymbolAttribute() : ValidationAttribute("A senha deve conter pelo menos um símbolo.")
 {
-    /// <summary>
-    /// Inicializa a validação de símbolo da senha.
-    /// </summary>
-    public PasswordSymbolAttribute()
-        : base("A senha deve conter pelo menos um símbolo.")
-    {
-    }
-
     /// <summary>
     /// Verifica se o valor contém pelo menos um símbolo.
     /// </summary>
@@ -28,7 +20,6 @@ public sealed class PasswordSymbolAttribute : ValidationAttribute
             return true;
         }
 
-        return password.Any(character =>
-            char.IsPunctuation(character) || char.IsSymbol(character));
+        return password.Any(character => char.IsPunctuation(character) || char.IsSymbol(character));
     }
 }

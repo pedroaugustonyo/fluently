@@ -13,7 +13,7 @@ public abstract class BaseModel
     /// <summary>
     /// Data de criação.
     /// </summary>
-    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.Now;
 
     /// <summary>
     /// Data da última atualização.

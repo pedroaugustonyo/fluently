@@ -1,11 +1,8 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-
 using Fluently.API.Exceptions;
 using Fluently.API.Services;
-
 using Microsoft.AspNetCore.Http;
-
 using Moq;
 
 namespace Fluently.API.UnitTests;
@@ -16,8 +13,7 @@ public sealed class CurrentUserServiceTests
     public void GetUserId_SubjectClaimExists_ReturnsUserId()
     {
         var userId = Guid.NewGuid();
-        var accessor = CreateAccessor(
-            new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()));
+        var accessor = CreateAccessor(new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()));
         var service = new CurrentUserService(accessor.Object);
 
         var result = service.GetUserId();
@@ -29,8 +25,7 @@ public sealed class CurrentUserServiceTests
     public void GetUserId_NameIdentifierFallbackExists_ReturnsUserId()
     {
         var userId = Guid.NewGuid();
-        var accessor = CreateAccessor(
-            new Claim(ClaimTypes.NameIdentifier, userId.ToString()));
+        var accessor = CreateAccessor(new Claim(ClaimTypes.NameIdentifier, userId.ToString()));
         var service = new CurrentUserService(accessor.Object);
 
         var result = service.GetUserId();
@@ -64,8 +59,7 @@ public sealed class CurrentUserServiceTests
     [Fact]
     public void GetUserId_IdentityClaimMalformed_ThrowsLocalizedUnauthorizedException()
     {
-        var accessor = CreateAccessor(
-            new Claim(JwtRegisteredClaimNames.Sub, "not-a-guid"));
+        var accessor = CreateAccessor(new Claim(JwtRegisteredClaimNames.Sub, "not-a-guid"));
         var service = new CurrentUserService(accessor.Object);
 
         var exception = Assert.Throws<UnauthorizedException>(() => service.GetUserId());
@@ -75,10 +69,7 @@ public sealed class CurrentUserServiceTests
 
     private static Mock<IHttpContextAccessor> CreateAccessor(params Claim[] claims)
     {
-        var context = new DefaultHttpContext
-        {
-            User = new ClaimsPrincipal(new ClaimsIdentity(claims, "Test"))
-        };
+        var context = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(claims, "Test")) };
         var accessor = new Mock<IHttpContextAccessor>();
         accessor.SetupGet(candidate => candidate.HttpContext).Returns(context);
 

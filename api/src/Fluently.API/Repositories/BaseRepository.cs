@@ -1,6 +1,5 @@
 using Fluently.API.Data.Context;
 using Fluently.API.Models;
-
 using Microsoft.EntityFrameworkCore;
 
 namespace Fluently.API.Repositories;
@@ -9,28 +8,13 @@ namespace Fluently.API.Repositories;
 /// Operações comuns de persistência das entidades.
 /// </summary>
 /// <typeparam name="TModel">Tipo da entidade persistida.</typeparam>
-public class BaseRepository<TModel> : IBaseRepository<TModel>
+public class BaseRepository<TModel>(AppDbContext dbContext) : IBaseRepository<TModel>
     where TModel : BaseModel
 {
     /// <summary>
-    /// Contexto do banco de dados.
+    /// Conjunto de entidades do tipo persistido.
     /// </summary>
-    protected readonly AppDbContext _dbContext;
-
-    /// <summary>
-    /// Conjunto de entidades.
-    /// </summary>
-    protected readonly DbSet<TModel> _dbSet;
-
-    /// <summary>
-    /// Inicializa uma nova instância do repositório base.
-    /// </summary>
-    /// <param name="dbContext">Contexto utilizado para acessar o banco de dados.</param>
-    public BaseRepository(AppDbContext dbContext)
-    {
-        _dbContext = dbContext;
-        _dbSet = dbContext.Set<TModel>();
-    }
+    protected DbSet<TModel> DbSet => dbContext.Set<TModel>();
 
     /// <summary>
     /// Obtém uma entidade pelo identificador.
@@ -40,7 +24,7 @@ public class BaseRepository<TModel> : IBaseRepository<TModel>
     /// <returns>Entidade encontrada ou valor nulo.</returns>
     public async Task<TModel?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
-        return await _dbSet.SingleOrDefaultAsync(model => model.Id == id, cancellationToken);
+        return await DbSet.SingleOrDefaultAsync(model => model.Id == id, cancellationToken);
     }
 
     /// <summary>
@@ -51,7 +35,7 @@ public class BaseRepository<TModel> : IBaseRepository<TModel>
     /// <returns>Tarefa que representa a operação assíncrona.</returns>
     public async Task AddAsync(TModel model, CancellationToken cancellationToken)
     {
-        await _dbSet.AddAsync(model, cancellationToken);
+        await DbSet.AddAsync(model, cancellationToken);
     }
 
     /// <summary>
@@ -60,7 +44,16 @@ public class BaseRepository<TModel> : IBaseRepository<TModel>
     /// <param name="model">Entidade que será atualizada.</param>
     public void Update(TModel model)
     {
-        _dbSet.Update(model);
+        DbSet.Update(model);
+    }
+
+    /// <summary>
+    /// Marca uma entidade para remoção do contexto de persistência.
+    /// </summary>
+    /// <param name="model">Entidade que será removida.</param>
+    public void Remove(TModel model)
+    {
+        DbSet.Remove(model);
     }
 
     /// <summary>
@@ -70,6 +63,6 @@ public class BaseRepository<TModel> : IBaseRepository<TModel>
     /// <returns>Quantidade de registros afetados.</returns>
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken)
     {
-        return await _dbContext.SaveChangesAsync(cancellationToken);
+        return await dbContext.SaveChangesAsync(cancellationToken);
     }
 }

@@ -7,7 +7,9 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'auth_api_client.dart';
+import 'confetti_animation.dart';
 import 'fluently_api_client.dart';
+import 'tasks_page.dart';
 
 void showHomeSonnerToast(
   BuildContext context,
@@ -162,6 +164,11 @@ class _HomePageState extends State<HomePage> {
   List<Question> _history = const [];
   bool _historyHasMore = false;
   List<LeaderboardEntry> _leaderboard = const [];
+  int _leaderboardPage = 1;
+  bool _leaderboardHasMore = false;
+  bool _loadingMoreLeaderboard = false;
+  Timer? _leaderboardSearchDebounce;
+  String _leaderboardSearch = '';
   int _tab = 0;
   bool _loading = true;
   bool _questionLoading = false;
@@ -194,6 +201,11 @@ class _HomePageState extends State<HomePage> {
       }
       if (mounted) setState(() => _loading = false);
     } on ApiException catch (error) {
+      if (error.statusCode == 404) {
+        widget.onSignOut();
+        return;
+      }
+
       if (_handleUnavailableApiError(error)) {
         return;
       }
@@ -207,7 +219,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   bool _handleUnavailableApiError(ApiException error) {
-    if (error.statusCode != null && error.statusCode! < 500) {
+    if (error.statusCode != null) {
       return false;
     }
 
@@ -259,7 +271,7 @@ class _HomePageState extends State<HomePage> {
       if (error.statusCode == 404) {
         await _generateQuestion();
       } else if (mounted) {
-        setState(() => _error = error.message);
+        showHomeSonnerToast(context, error.message);
       }
     } finally {
       if (mounted) setState(() => _questionLoading = false);
@@ -281,7 +293,7 @@ class _HomePageState extends State<HomePage> {
       if (_handleUnavailableApiError(error)) {
         return;
       }
-      if (mounted) setState(() => _error = error.message);
+      if (mounted) showHomeSonnerToast(context, error.message);
     } finally {
       if (mounted) setState(() => _questionLoading = false);
     }
@@ -322,6 +334,12 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _showNextQuestion() => _generateQuestion();
 
+  void _showPomodoroCompletion(String message) {
+    if (mounted) {
+      showHomeSonnerToast(context, message, isError: false);
+    }
+  }
+
   Future<void> _loadHistory() async {
     try {
       final history = await _api.getQuestions();
@@ -335,27 +353,63 @@ class _HomePageState extends State<HomePage> {
       if (_handleUnavailableApiError(error)) {
         return;
       }
-      if (mounted) setState(() => _error = error.message);
+      if (mounted) showHomeSonnerToast(context, error.message);
     }
   }
 
-  Future<void> _loadLeaderboard() async {
+  Future<void> _loadLeaderboard({bool loadMore = false}) async {
+    if (loadMore && (_loadingMoreLeaderboard || !_leaderboardHasMore)) {
+      return;
+    }
+
+    if (loadMore && mounted) {
+      setState(() => _loadingMoreLeaderboard = true);
+    }
     try {
-      final leaderboard = await _api.getLeaderboard();
-      if (mounted) setState(() => _leaderboard = leaderboard);
+      final leaderboard = await _api.getLeaderboard(
+        page: loadMore ? _leaderboardPage + 1 : 1,
+        search: _leaderboardSearch,
+      );
+      if (mounted) {
+        setState(() {
+          _leaderboard = loadMore
+              ? [..._leaderboard, ...leaderboard.items]
+              : leaderboard.items;
+          _leaderboardPage = leaderboard.page;
+          _leaderboardHasMore = leaderboard.hasMore;
+        });
+      }
     } on ApiException catch (error) {
       if (_handleUnavailableApiError(error)) {
         return;
       }
       if (mounted) setState(() => _error = error.message);
+    } finally {
+      if (loadMore && mounted) {
+        setState(() => _loadingMoreLeaderboard = false);
+      }
     }
+  }
+
+  void _searchLeaderboard(String search) {
+    _leaderboardSearchDebounce?.cancel();
+    _leaderboardSearchDebounce = Timer(const Duration(milliseconds: 300), () {
+      _leaderboardSearch = search;
+      _loadLeaderboard();
+    });
+  }
+
+  @override
+  void dispose() {
+    _leaderboardSearchDebounce?.cancel();
+    super.dispose();
   }
 
   Future<void> _changeTab(int index) async {
     setState(() => _tab = index);
     if (index == 1) await _loadLeaderboard();
-    if (index == 0) await _loadQuestion();
-    if (index == 2) await _loadProfile();
+    if (index == 0 && _answer == null) await _loadQuestion();
+    if (index == 4) await _loadProfile();
   }
 
   Future<void> _completeOnboarding(int proficiency, String bio) async {
@@ -401,36 +455,50 @@ class _HomePageState extends State<HomePage> {
             Column(
               children: [
                 Expanded(
-                  child: _tab == 0
-                      ? _QuestionsTab(
-                          question: _question,
-                          answer: _answer,
-                          currentStreak: _profile!.currentStreak,
-                          selectedAlternative: _selectedAlternative,
-                          isSubmittingAnswer: _submittingAnswer,
-                          onSelect: (alternative) => setState(
-                            () => _selectedAlternative = alternative,
-                          ),
-                          onConfirm: () => _selectedAlternative == null
-                              ? Future.value()
-                              : _submit(_selectedAlternative!),
-                          onNext: _showNextQuestion,
-                          onHistory: _showHistory,
-                        )
-                      : _tab == 1
-                      ? _RankingTab(
-                          entries: _leaderboard,
-                          currentUserId: _profile!.id,
-                          onRefresh: _loadLeaderboard,
-                        )
-                      : _ProfileTab(
-                          profile: _profile!,
-                          api: _api,
-                          onProfileChanged: (profile) =>
-                              setState(() => _profile = profile),
-                          onApiError: _handleUnavailableApiError,
-                          onSignOut: widget.onSignOut,
-                        ),
+                  child: IndexedStack(
+                    index: _tab,
+                    children: [
+                      _QuestionsTab(
+                        question: _question,
+                        answer: _answer,
+                        currentStreak: _profile!.currentStreak,
+                        selectedAlternative: _selectedAlternative,
+                        isSubmittingAnswer: _submittingAnswer,
+                        onSelect: (alternative) =>
+                            setState(() => _selectedAlternative = alternative),
+                        onConfirm: () => _selectedAlternative == null
+                            ? Future.value()
+                            : _submit(_selectedAlternative!),
+                        onNext: _showNextQuestion,
+                        onHistory: _showHistory,
+                      ),
+                      _RankingTab(
+                        entries: _leaderboard,
+                        currentUserId: _profile!.id,
+                        onRefresh: _loadLeaderboard,
+                        hasMore: _leaderboardHasMore,
+                        loadingMore: _loadingMoreLeaderboard,
+                        onLoadMore: () => _loadLeaderboard(loadMore: true),
+                        onSearch: _searchLeaderboard,
+                      ),
+                      TasksPage(
+                        api: _api,
+                        onApiError: _handleUnavailableApiError,
+                      ),
+                      PomodoroPage(
+                        embedded: true,
+                        onSessionCompleted: _showPomodoroCompletion,
+                      ),
+                      _ProfileTab(
+                        profile: _profile!,
+                        api: _api,
+                        onProfileChanged: (profile) =>
+                            setState(() => _profile = profile),
+                        onApiError: _handleUnavailableApiError,
+                        onSignOut: widget.onSignOut,
+                      ),
+                    ],
+                  ),
                 ),
                 _GlassFooter(index: _tab, onSelected: _changeTab),
               ],
@@ -649,7 +717,7 @@ class _QuestionsTab extends StatelessWidget {
   Widget build(BuildContext context) => RefreshIndicator(
     onRefresh: onHistory,
     child: ListView(
-      padding: const EdgeInsets.fromLTRB(18, 10, 18, 10),
+      padding: const EdgeInsets.fromLTRB(22, 18, 22, 18),
       children: [
         Row(
           children: [
@@ -664,8 +732,6 @@ class _QuestionsTab extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            if (currentStreak >= 3) _StreakFire(streak: currentStreak),
-            if (currentStreak >= 3) const SizedBox(width: 10),
             IconButton(
               onPressed: onHistory,
               icon: const Icon(Icons.history_rounded),
@@ -738,6 +804,10 @@ class _QuestionCard extends StatelessWidget {
                     fontWeight: FontWeight.w800,
                   ),
                 ),
+                if (currentStreak >= 3) ...[
+                  const SizedBox(width: 12),
+                  _StreakFire(streak: currentStreak),
+                ],
               ],
             ),
             const SizedBox(height: 7),
@@ -786,7 +856,6 @@ class _QuestionCard extends StatelessWidget {
               ),
             ],
             if (answer != null) ...[
-              if (answer!.isCorrect) const _ConfettiBurst(),
               const SizedBox(height: 12),
               Container(
                 width: double.infinity,
@@ -835,6 +904,8 @@ class _QuestionCard extends StatelessWidget {
           ],
         ),
       ),
+      if (answer?.isCorrect == true)
+        const Positioned.fill(child: _QuestionAnswerConfetti()),
       Positioned(
         top: -34,
         right: 6,
@@ -952,10 +1023,8 @@ class _StreakFireState extends State<_StreakFire>
         ),
         AnimatedSwitcher(
           duration: const Duration(milliseconds: 220),
-          transitionBuilder: (child, animation) => FadeTransition(
-            opacity: animation,
-            child: child,
-          ),
+          transitionBuilder: (child, animation) =>
+              FadeTransition(opacity: animation, child: child),
           child: Text(
             '${widget.streak}',
             key: ValueKey(widget.streak),
@@ -975,10 +1044,18 @@ class _RankingTab extends StatelessWidget {
     required this.entries,
     required this.currentUserId,
     required this.onRefresh,
+    required this.hasMore,
+    required this.loadingMore,
+    required this.onLoadMore,
+    required this.onSearch,
   });
   final List<LeaderboardEntry> entries;
   final String currentUserId;
   final Future<void> Function() onRefresh;
+  final bool hasMore;
+  final bool loadingMore;
+  final Future<void> Function() onLoadMore;
+  final ValueChanged<String> onSearch;
   @override
   Widget build(BuildContext context) => RefreshIndicator(
     onRefresh: onRefresh,
@@ -1000,6 +1077,25 @@ class _RankingTab extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 18),
+        TextField(
+          onChanged: onSearch,
+          textInputAction: TextInputAction.search,
+          decoration: InputDecoration(
+            hintText: 'Buscar estudante',
+            prefixIcon: const Icon(Icons.search_rounded),
+            filled: true,
+            fillColor: const Color(0xFFF1F8F6),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Color(0xFFBFEDE4)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Color(0xFFBFEDE4)),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
         if (entries.isEmpty)
           const _EmptyState(
             icon: Icons.emoji_events_outlined,
@@ -1057,6 +1153,14 @@ class _RankingTab extends StatelessWidget {
               ),
             );
           }),
+        if (hasMore)
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 22),
+            child: TextButton(
+              onPressed: loadingMore ? null : onLoadMore,
+              child: Text(loadingMore ? 'Carregando...' : 'Carregar mais'),
+            ),
+          ),
       ],
     ),
   );
@@ -1080,6 +1184,7 @@ class _ProfileTab extends StatefulWidget {
 }
 
 class _ProfileTabState extends State<_ProfileTab> {
+  final _profileFormKey = GlobalKey<FormState>();
   late final TextEditingController _first = TextEditingController(
     text: widget.profile.firstName,
   );
@@ -1108,6 +1213,9 @@ class _ProfileTabState extends State<_ProfileTab> {
     }
 
     FocusScope.of(context).unfocus();
+    if (!_profileFormKey.currentState!.validate()) {
+      return;
+    }
     setState(() => _saving = true);
     try {
       widget.onProfileChanged(
@@ -1206,148 +1314,162 @@ class _ProfileTabState extends State<_ProfileTab> {
   }
 
   @override
-  Widget build(BuildContext context) => ListView(
-    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-    padding: EdgeInsets.fromLTRB(
-      18,
-      10,
-      18,
-      MediaQuery.viewInsetsOf(context).bottom + 10,
-    ),
-    children: [
-      Center(
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            _ProfileAvatar(
-              radius: 34,
-              name: widget.profile.firstName,
-              profileImageBase64: _profileImageBase64,
-            ),
-            Positioned(
-              right: -4,
-              bottom: -4,
-              child: Material(
-                color: const Color(0xFF0BA88B),
-                shape: const CircleBorder(),
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: _savingProfileImage ? null : _pickProfileImage,
-                  child: Padding(
-                    padding: EdgeInsets.all(6),
-                    child: _savingProfileImage
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
+  Widget build(BuildContext context) => Form(
+    key: _profileFormKey,
+    child: ListView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: EdgeInsets.fromLTRB(
+        18,
+        10,
+        18,
+        MediaQuery.viewInsetsOf(context).bottom + 10,
+      ),
+      children: [
+        Center(
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              _ProfileAvatar(
+                radius: 34,
+                name: widget.profile.firstName,
+                profileImageBase64: _profileImageBase64,
+              ),
+              Positioned(
+                right: -4,
+                bottom: -4,
+                child: Material(
+                  color: const Color(0xFF0BA88B),
+                  shape: const CircleBorder(),
+                  child: InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: _savingProfileImage ? null : _pickProfileImage,
+                    child: Padding(
+                      padding: EdgeInsets.all(6),
+                      child: _savingProfileImage
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.photo_camera_outlined,
+                              size: 16,
                               color: Colors.white,
                             ),
-                          )
-                        : const Icon(
-                            Icons.photo_camera_outlined,
-                            size: 16,
-                            color: Colors.white,
-                          ),
+                    ),
                   ),
                 ),
               ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          widget.profile.fullName,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF101B31),
+          ),
+        ),
+        Text(
+          '${widget.profile.totalXp} XP',
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Color(0xFF75839A)),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Seu perfil',
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF101B31),
+                ),
+              ),
+            ),
+            IconButton(
+              onPressed: _editing
+                  ? null
+                  : () => setState(() => _editing = true),
+              constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+              padding: EdgeInsets.zero,
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              color: const Color(0xFF078F78),
+              tooltip: 'Editar perfil',
             ),
           ],
         ),
-      ),
-      const SizedBox(height: 10),
-      Text(
-        widget.profile.fullName,
-        textAlign: TextAlign.center,
-        style: const TextStyle(
-          fontSize: 17,
-          fontWeight: FontWeight.w800,
-          color: Color(0xFF101B31),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: _first,
+          enabled: _editing,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          validator: (value) => _profileNameValidator(value, 'primeiro nome'),
+          style: const TextStyle(fontSize: 13.5),
+          decoration: _profileInputDecoration(
+            'Primeiro nome',
+            enabled: _editing,
+          ),
         ),
-      ),
-      Text(
-        '${widget.profile.totalXp} XP',
-        textAlign: TextAlign.center,
-        style: const TextStyle(color: Color(0xFF75839A)),
-      ),
-      const SizedBox(height: 16),
-      Row(
-        children: [
-          const Expanded(
-            child: Text(
-              'Seu perfil',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFF101B31),
-              ),
-            ),
-          ),
-          IconButton(
-            onPressed: _editing ? null : () => setState(() => _editing = true),
-            constraints: const BoxConstraints.tightFor(width: 36, height: 36),
-            padding: EdgeInsets.zero,
-            icon: const Icon(Icons.edit_outlined, size: 18),
-            color: const Color(0xFF078F78),
-            tooltip: 'Editar perfil',
-          ),
-        ],
-      ),
-      const SizedBox(height: 6),
-      TextField(
-        controller: _first,
-        enabled: _editing,
-        style: const TextStyle(fontSize: 13.5),
-        decoration: _profileInputDecoration('Primeiro nome', enabled: _editing),
-      ),
-      const SizedBox(height: 6),
-      TextField(
-        controller: _last,
-        enabled: _editing,
-        style: const TextStyle(fontSize: 13.5),
-        decoration: _profileInputDecoration('Sobrenome', enabled: _editing),
-      ),
-      const SizedBox(height: 6),
-      _ProficiencySelect(
-        value: _level,
-        enabled: _editing,
-        onChanged: (level) => setState(() => _level = level),
-      ),
-      const SizedBox(height: 6),
-      TextField(
-        controller: _bio,
-        enabled: _editing,
-        maxLines: 4,
-        maxLength: 2000,
-        scrollPadding: const EdgeInsets.only(bottom: 160),
-        style: const TextStyle(fontSize: 13.5),
-        decoration: _profileInputDecoration('Sobre você', enabled: _editing),
-      ),
-      const SizedBox(height: 6),
-      _ActionButton(
-        label: 'Salvar perfil',
-        loading: _saving,
-        fontSize: 13,
-        onPressed: _editing ? _save : null,
-      ),
-      const SizedBox(height: 8),
-      _ActionButton(
-        label: 'Alterar e-mail ou senha',
-        loading: false,
-        fontSize: 13,
-        onPressed: () async => _credentialsDialog(context),
-      ),
-      const SizedBox(height: 8),
-      _ActionButton(
-        label: 'Sair da conta',
-        loading: false,
-        color: const Color(0xFFD94A4A),
-        fontSize: 13,
-        icon: Icons.logout_rounded,
-        onPressed: () async => widget.onSignOut(),
-      ),
-    ],
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: _last,
+          enabled: _editing,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          validator: (value) => _profileNameValidator(value, 'sobrenome'),
+          style: const TextStyle(fontSize: 13.5),
+          decoration: _profileInputDecoration('Sobrenome', enabled: _editing),
+        ),
+        const SizedBox(height: 6),
+        _ProficiencySelect(
+          value: _level,
+          enabled: _editing,
+          onChanged: (level) => setState(() => _level = level),
+        ),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: _bio,
+          enabled: _editing,
+          maxLines: 4,
+          maxLength: 2000,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          validator: _profileBioValidator,
+          scrollPadding: const EdgeInsets.only(bottom: 160),
+          style: const TextStyle(fontSize: 13.5),
+          decoration: _profileInputDecoration('Sobre você', enabled: _editing),
+        ),
+        const SizedBox(height: 6),
+        _ActionButton(
+          label: 'Salvar perfil',
+          loading: _saving,
+          height: 52,
+          onPressed: _editing ? _save : null,
+        ),
+        const SizedBox(height: 8),
+        _ActionButton(
+          label: 'Alterar e-mail ou senha',
+          loading: false,
+          height: 52,
+          onPressed: () async => _credentialsDialog(context),
+        ),
+        const SizedBox(height: 8),
+        _ActionButton(
+          label: 'Sair da conta',
+          loading: false,
+          color: const Color(0xFFD94A4A),
+          height: 52,
+          icon: Icons.logout_rounded,
+          onPressed: () async => widget.onSignOut(),
+        ),
+      ],
+    ),
   );
   Future<void> _credentialsDialog(BuildContext context) async {
     final email = TextEditingController(text: widget.profile.email);
@@ -1357,24 +1479,40 @@ class _ProfileTabState extends State<_ProfileTab> {
     var isSaving = false;
     var obscurePassword = true;
     var obscureConfirmation = true;
-    await showDialog<void>(
+    await showModalBottomSheet<void>(
       context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) => Dialog(
-          insetPadding: const EdgeInsets.symmetric(horizontal: 18),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(28),
+        builder: (dialogContext, setDialogState) => Container(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 380),
+          child: SafeArea(
+            top: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 22, 24, 24),
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.viewInsetsOf(dialogContext).bottom,
+              ),
               child: Form(
                 key: formKey,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    Center(
+                      child: Container(
+                        width: 42,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD2E2E2),
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
                     Row(
                       children: [
                         const Expanded(
@@ -1406,25 +1544,26 @@ class _ProfileTabState extends State<_ProfileTab> {
                       controller: email,
                       keyboardType: TextInputType.emailAddress,
                       validator: _credentialEmailValidator,
-                      decoration: _inputDecoration('E-mail'),
+                      decoration: _credentialsInputDecoration('E-mail'),
                     ),
                     const SizedBox(height: 10),
                     TextFormField(
                       controller: password,
                       obscureText: obscurePassword,
                       validator: _credentialPasswordValidator,
-                      decoration: _inputDecoration('Nova senha').copyWith(
-                        suffixIcon: IconButton(
-                          onPressed: () => setDialogState(
-                            () => obscurePassword = !obscurePassword,
+                      decoration: _credentialsInputDecoration('Nova senha')
+                          .copyWith(
+                            suffixIcon: IconButton(
+                              onPressed: () => setDialogState(
+                                () => obscurePassword = !obscurePassword,
+                              ),
+                              icon: Icon(
+                                obscurePassword
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
+                              ),
+                            ),
                           ),
-                          icon: Icon(
-                            obscurePassword
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                          ),
-                        ),
-                      ),
                     ),
                     const SizedBox(height: 10),
                     TextFormField(
@@ -1433,8 +1572,10 @@ class _ProfileTabState extends State<_ProfileTab> {
                       validator: (value) => value != password.text
                           ? 'As senhas não coincidem.'
                           : null,
-                      decoration: _inputDecoration('Confirmar nova senha')
-                          .copyWith(
+                      decoration:
+                          _credentialsInputDecoration(
+                            'Confirmar nova senha',
+                          ).copyWith(
                             suffixIcon: IconButton(
                               onPressed: () => setDialogState(
                                 () =>
@@ -1450,7 +1591,7 @@ class _ProfileTabState extends State<_ProfileTab> {
                     ),
                     const SizedBox(height: 20),
                     SizedBox(
-                      height: 46,
+                      height: 52,
                       child: ElevatedButton(
                         onPressed: isSaving
                             ? null
@@ -1485,6 +1626,13 @@ class _ProfileTabState extends State<_ProfileTab> {
                                   }
                                 }
                               },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF00A887),
+                          foregroundColor: Colors.white,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.all(Radius.circular(18)),
+                          ),
+                        ),
                         child: isSaving
                             ? const SizedBox(
                                 width: 20,
@@ -1869,34 +2017,82 @@ class _GlassFooter extends StatelessWidget {
   final ValueChanged<int> onSelected;
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(55, 10, 55, 18),
-    child: ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-        child: Container(
-          decoration: _glassDecoration(24),
-          child: Row(
-            children: [
-              _FooterItem(
-                icon: Icons.auto_stories_rounded,
-                label: 'Questões',
-                selected: index == 0,
-                onTap: () => onSelected(0),
+    padding: const EdgeInsets.fromLTRB(16, 10, 16, 26),
+    child: Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x260C6B57),
+            blurRadius: 24,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(30),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xF7FFFFFF), Color(0xD9FFFFFF)],
               ),
-              _FooterItem(
-                icon: Icons.emoji_events_rounded,
-                label: 'Ranking',
-                selected: index == 1,
-                onTap: () => onSelected(1),
-              ),
-              _FooterItem(
-                icon: Icons.person_rounded,
-                label: 'Perfil',
-                selected: index == 2,
-                onTap: () => onSelected(2),
-              ),
-            ],
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: const Color(0xCCFFFFFF)),
+            ),
+            child: Stack(
+              children: [
+                Positioned(
+                  top: 1,
+                  left: 22,
+                  right: 22,
+                  child: Container(
+                    height: 1,
+                    decoration: BoxDecoration(
+                      color: const Color(0xCCFFFFFF),
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                ),
+                Row(
+                  children: [
+                    _FooterItem(
+                      icon: Icons.auto_stories_rounded,
+                      label: 'Questões',
+                      selected: index == 0,
+                      onTap: () => onSelected(0),
+                    ),
+                    _FooterItem(
+                      icon: Icons.emoji_events_rounded,
+                      label: 'Ranking',
+                      selected: index == 1,
+                      onTap: () => onSelected(1),
+                    ),
+                    _FooterItem(
+                      icon: Icons.checklist_rounded,
+                      label: 'Tarefas',
+                      selected: index == 2,
+                      onTap: () => onSelected(2),
+                    ),
+                    _FooterItem(
+                      icon: Icons.timer_outlined,
+                      label: 'Pomodoro',
+                      selected: index == 3,
+                      onTap: () => onSelected(3),
+                    ),
+                    _FooterItem(
+                      icon: Icons.person_rounded,
+                      label: 'Perfil',
+                      selected: index == 4,
+                      onTap: () => onSelected(4),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -2038,18 +2234,19 @@ class _QuestionDetail extends StatelessWidget {
   );
 }
 
-class _ConfettiBurst extends StatefulWidget {
-  const _ConfettiBurst();
+class _QuestionAnswerConfetti extends StatefulWidget {
+  const _QuestionAnswerConfetti();
 
   @override
-  State<_ConfettiBurst> createState() => _ConfettiBurstState();
+  State<_QuestionAnswerConfetti> createState() =>
+      _QuestionAnswerConfettiState();
 }
 
-class _ConfettiBurstState extends State<_ConfettiBurst>
+class _QuestionAnswerConfettiState extends State<_QuestionAnswerConfetti>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 900),
+    duration: confettiAnimationDuration,
   )..forward();
 
   @override
@@ -2059,41 +2256,10 @@ class _ConfettiBurstState extends State<_ConfettiBurst>
   }
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    height: 0,
+  Widget build(BuildContext context) => IgnorePointer(
     child: AnimatedBuilder(
-      animation: CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-      builder: (context, child) => Stack(
-        clipBehavior: Clip.none,
-        children: List.generate(18, (index) {
-          final horizontal = (index * 47 % 260).toDouble();
-          final direction = index.isEven ? -1.0 : 1.0;
-          final progress = _controller.value;
-          return Positioned(
-            left: horizontal + (progress * 20 * direction),
-            top:
-                12 -
-                (progress * (20 - (index % 4) * 3)) +
-                (progress * progress * 20),
-            child: Transform.rotate(
-              angle: progress * (index.isEven ? 4 : -4),
-              child: Opacity(
-                opacity: (1 - progress).clamp(0, 1),
-                child: Container(
-                  width: 6,
-                  height: 10,
-                  color: [
-                    const Color(0xFF0BA88B),
-                    const Color(0xFFFFB22C),
-                    const Color(0xFF6C8DFF),
-                    const Color(0xFFF17B7B),
-                  ][index % 4],
-                ),
-              ),
-            ),
-          );
-        }),
-      ),
+      animation: _controller,
+      builder: (context, _) => ConfettiAnimation(progress: _controller.value),
     ),
   );
 }
@@ -2119,15 +2285,64 @@ class _QuestionHistory extends StatefulWidget {
 
 class _QuestionHistoryState extends State<_QuestionHistory> {
   late final List<Question> _items = List.of(widget.items);
+  final _searchController = TextEditingController();
+  Timer? _searchDebounce;
   int _page = 1;
   late bool _hasMore = widget.hasMore;
   bool _loadingMore = false;
+  bool _searching = false;
+
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _search(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(
+      const Duration(milliseconds: 300),
+      () => _loadFirstPage(value),
+    );
+  }
+
+  Future<void> _loadFirstPage(String search) async {
+    if (mounted) {
+      setState(() => _searching = true);
+    }
+    try {
+      final page = await widget.api.getQuestions(search: search);
+      if (mounted) {
+        setState(() {
+          _items
+            ..clear()
+            ..addAll(page.items);
+          _page = page.page;
+          _hasMore = page.hasMore;
+        });
+      }
+    } on ApiException catch (error) {
+      if (widget.onApiError(error) && mounted) {
+        Navigator.of(context).pop();
+      } else if (mounted) {
+        showHomeSonnerToast(context, error.message);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _searching = false);
+      }
+    }
+  }
 
   Future<void> _loadMore() async {
     if (_loadingMore || !_hasMore) return;
     setState(() => _loadingMore = true);
     try {
-      final next = await widget.api.getQuestions(page: _page + 1);
+      final next = await widget.api.getQuestions(
+        page: _page + 1,
+        search: _searchController.text,
+      );
       if (mounted) {
         setState(() {
           _page = next.page;
@@ -2153,7 +2368,7 @@ class _QuestionHistoryState extends State<_QuestionHistory> {
     maxChildSize: .86,
     builder: (context, controller) => Container(
       decoration: const BoxDecoration(
-        color: Color(0xFFF7FCFA),
+        color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Column(
@@ -2181,13 +2396,52 @@ class _QuestionHistoryState extends State<_QuestionHistory> {
               ],
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: TextField(
+              controller: _searchController,
+              onChanged: _search,
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: 'Buscar questão',
+                prefixIcon: const Icon(Icons.search_rounded),
+                suffixIcon: _searchController.text.isEmpty
+                    ? null
+                    : IconButton(
+                        onPressed: () {
+                          _searchController.clear();
+                          _search('');
+                        },
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                filled: true,
+                fillColor: const Color(0xFFF1F8F6),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(color: Color(0xFFBFEDE4)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(color: Color(0xFFBFEDE4)),
+                ),
+              ),
+            ),
+          ),
           Expanded(
             child: ListView.builder(
               controller: controller,
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 64),
-              itemCount: _items.length + (_hasMore ? 1 : 0),
+              itemCount:
+                  _items.length + (_hasMore ? 1 : 0) + (_searching ? 1 : 0),
               itemBuilder: (context, index) {
-                if (_hasMore && index == _items.length) {
+                if (_searching && index == 0) {
+                  return const Padding(
+                    padding: EdgeInsets.only(bottom: 12),
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+                final itemIndex = index - (_searching ? 1 : 0);
+                if (_hasMore && itemIndex == _items.length) {
                   return Padding(
                     padding: const EdgeInsets.only(top: 8, bottom: 40),
                     child: TextButton(
@@ -2198,7 +2452,7 @@ class _QuestionHistoryState extends State<_QuestionHistory> {
                     ),
                   );
                 }
-                final item = _items[index];
+                final item = _items[itemIndex];
                 final isCorrect = item.isCorrect == true;
                 return Container(
                   margin: const EdgeInsets.only(bottom: 10),
@@ -2317,18 +2571,18 @@ class _ActionButton extends StatelessWidget {
     required this.loading,
     required this.onPressed,
     this.color = const Color(0xFF0BA88B),
-    this.fontSize = 14,
     this.icon,
+    this.height = 42,
   });
   final String label;
   final bool loading;
   final Color color;
-  final double fontSize;
   final IconData? icon;
+  final double height;
   final Future<void> Function()? onPressed;
   @override
   Widget build(BuildContext context) => SizedBox(
-    height: 42,
+    height: height,
     child: ElevatedButton(
       onPressed: loading ? null : onPressed,
       style: ElevatedButton.styleFrom(
@@ -2354,10 +2608,7 @@ class _ActionButton extends StatelessWidget {
                 ],
                 Text(
                   label,
-                  style: TextStyle(
-                    fontSize: fontSize,
-                    fontWeight: FontWeight.w800,
-                  ),
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
                 ),
               ],
             ),
@@ -2406,6 +2657,20 @@ InputDecoration _profileInputDecoration(String hint, {required bool enabled}) =>
       fillColor: enabled ? const Color(0xBFFFFFFF) : const Color(0xFFEFF3F3),
     );
 
+InputDecoration _credentialsInputDecoration(String hint) =>
+    const InputDecoration(
+      filled: true,
+      fillColor: Color(0xFFF1F8F6),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+        borderSide: BorderSide(color: Color(0xFFBFEDE4)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+        borderSide: BorderSide(color: Color(0xFFBFEDE4)),
+      ),
+    ).copyWith(hintText: hint);
+
 String? _credentialEmailValidator(String? value) {
   final email = value?.trim() ?? '';
   if (email.isEmpty) {
@@ -2427,6 +2692,24 @@ String? _credentialPasswordValidator(String? value) {
       !RegExp(r'[a-z]').hasMatch(password) ||
       !RegExp(r'\d').hasMatch(password)) {
     return 'Use 8+ caracteres, maiúscula, minúscula e número.';
+  }
+  return null;
+}
+
+String? _profileNameValidator(String? value, String label) {
+  final name = value?.trim() ?? '';
+  if (name.isEmpty) {
+    return 'Informe seu $label.';
+  }
+  if (name.length > 100) {
+    return 'Use no máximo 100 caracteres.';
+  }
+  return null;
+}
+
+String? _profileBioValidator(String? value) {
+  if ((value?.length ?? 0) > 2000) {
+    return 'Use no máximo 2.000 caracteres.';
   }
   return null;
 }

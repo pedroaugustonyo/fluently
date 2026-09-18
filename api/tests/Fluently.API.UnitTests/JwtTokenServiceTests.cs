@@ -1,5 +1,4 @@
 using System.IdentityModel.Tokens.Jwt;
-
 using Fluently.API.Options;
 using Fluently.API.Services;
 
@@ -12,7 +11,7 @@ public sealed class JwtTokenServiceTests
         Issuer = "Fluently.API",
         Audience = "Fluently.Client",
         SigningKey = "unit-test-signing-key-with-at-least-32-characters",
-        ExpirationMinutes = 60
+        ExpirationMinutes = 60,
     };
 
     [Fact]
@@ -21,13 +20,12 @@ public sealed class JwtTokenServiceTests
         var user = TestData.CreateUser();
         var service = new JwtTokenService(
             Microsoft.Extensions.Options.Options.Create(Options),
-            new FixedTimeProvider(TestData.Now));
+            new FixedTimeProvider(TestData.Now)
+        );
 
         var result = service.Create(user.Id, user.Email);
         var token = new JwtSecurityTokenHandler().ReadJwtToken(result.AccessToken);
-        var identityClaims = token.Claims
-            .Where(claim => claim.Type is "sub" or "email")
-            .ToArray();
+        var identityClaims = token.Claims.Where(claim => claim.Type is "sub" or "email").ToArray();
 
         Assert.Equal(2, identityClaims.Length);
         Assert.Equal(user.Id.ToString(), token.Subject);
@@ -42,7 +40,8 @@ public sealed class JwtTokenServiceTests
     {
         var service = new JwtTokenService(
             Microsoft.Extensions.Options.Options.Create(Options),
-            new FixedTimeProvider(TestData.Now));
+            new FixedTimeProvider(TestData.Now)
+        );
 
         var result = service.Create(Guid.NewGuid(), "pedro@example.com");
 
@@ -54,7 +53,8 @@ public sealed class JwtTokenServiceTests
     {
         var service = new JwtTokenService(
             Microsoft.Extensions.Options.Options.Create(Options),
-            new FixedTimeProvider(TestData.Now));
+            new FixedTimeProvider(TestData.Now)
+        );
 
         var result = service.Create(Guid.NewGuid(), "pedro@example.com");
         var token = new JwtSecurityTokenHandler().ReadJwtToken(result.AccessToken);

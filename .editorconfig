@@ -5,3 +5,4 @@ insert_final_newline = true
 
 [*.cs]
 dotnet_separate_import_directive_groups = true
+max_line_length = 120

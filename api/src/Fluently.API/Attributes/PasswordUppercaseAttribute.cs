@@ -6,16 +6,9 @@ namespace Fluently.API.Attributes;
 /// Validação de letra maiúscula em senhas.
 /// </summary>
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field | AttributeTargets.Parameter)]
-public sealed class PasswordUppercaseAttribute : ValidationAttribute
+public sealed class PasswordUppercaseAttribute()
+    : ValidationAttribute("A senha deve conter pelo menos uma letra maiúscula.")
 {
-    /// <summary>
-    /// Inicializa a validação de letra maiúscula da senha.
-    /// </summary>
-    public PasswordUppercaseAttribute()
-        : base("A senha deve conter pelo menos uma letra maiúscula.")
-    {
-    }
-
     /// <summary>
     /// Verifica se o valor contém pelo menos uma letra maiúscula.
     /// </summary>

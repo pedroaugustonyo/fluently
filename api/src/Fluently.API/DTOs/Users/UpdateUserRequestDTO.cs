@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-
 using Fluently.API.Enums;
 
 namespace Fluently.API.DTOs.Users;

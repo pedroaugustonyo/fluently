@@ -20,8 +20,7 @@ public interface IUserService
     /// <param name="request">Dados do perfil que serão atualizados.</param>
     /// <param name="cancellationToken">Token para cancelar a operação.</param>
     /// <returns>Dados atualizados do usuário.</returns>
-    Task<UpdateUserResponseDTO> UpdateProfileAsync(UpdateUserRequestDTO request,
-                                                    CancellationToken cancellationToken);
+    Task<UpdateUserResponseDTO> UpdateProfileAsync(UpdateUserRequestDTO request, CancellationToken cancellationToken);
 
     /// <summary>
     /// Atualiza as credenciais do usuário autenticado.
@@ -29,6 +28,5 @@ public interface IUserService
     /// <param name="request">Novo endereço de e-mail, nova senha e sua confirmação.</param>
     /// <param name="cancellationToken">Token para cancelar a operação.</param>
     /// <returns>Tarefa que representa a operação assíncrona.</returns>
-    Task UpdateCredentialsAsync(UpdateUserCredentialsRequestDTO request,
-                                CancellationToken cancellationToken);
+    Task UpdateCredentialsAsync(UpdateUserCredentialsRequestDTO request, CancellationToken cancellationToken);
 }

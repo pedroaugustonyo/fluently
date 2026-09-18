@@ -3,7 +3,6 @@ using Fluently.API.Exceptions;
 using Fluently.API.Helpers;
 using Fluently.API.Models;
 using Fluently.API.Repositories;
-
 using Microsoft.AspNetCore.Identity;
 
 namespace Fluently.API.Services;
@@ -11,54 +10,15 @@ namespace Fluently.API.Services;
 /// <summary>
 /// Dados do usuário autenticado.
 /// </summary>
-public sealed class UserService : IUserService
+public sealed class UserService(
+    ICurrentUserService currentUserService,
+    IUserRepository userRepository,
+    IQuestionRepository questionRepository,
+    IPasswordHasher<UserModel> passwordHasher,
+    ILogger<UserService> logger,
+    TimeProvider timeProvider
+) : IUserService
 {
-    /// <summary>
-    /// Serviço do usuário atual.
-    /// </summary>
-    private readonly ICurrentUserService _currentUserService;
-
-    /// <summary>
-    /// Repositório de usuários.
-    /// </summary>
-    private readonly IUserRepository _userRepository;
-
-    /// <summary>
-    /// Repositório de questões.
-    /// </summary>
-    private readonly IQuestionRepository _questionRepository;
-
-    /// <summary>
-    /// Componente de proteção de senhas.
-    /// </summary>
-    private readonly IPasswordHasher<UserModel> _passwordHasher;
-
-    /// <summary>
-    /// Registrador de usuários.
-    /// </summary>
-    private readonly ILogger<UserService> _logger;
-
-    /// <summary>
-    /// Inicializa uma nova instância do serviço de usuários.
-    /// </summary>
-    /// <param name="currentUserService">Serviço utilizado para identificar o usuário atual.</param>
-    /// <param name="userRepository">Repositório utilizado para acessar os usuários.</param>
-    /// <param name="questionRepository">Repositório utilizado para invalidar questões pendentes.</param>
-    /// <param name="passwordHasher">Componente utilizado para proteger as senhas.</param>
-    /// <param name="logger">Registrador dos eventos internos do usuário.</param>
-    public UserService(ICurrentUserService currentUserService,
-                       IUserRepository userRepository,
-                       IQuestionRepository questionRepository,
-                       IPasswordHasher<UserModel> passwordHasher,
-                       ILogger<UserService> logger)
-    {
-        _currentUserService = currentUserService;
-        _userRepository = userRepository;
-        _questionRepository = questionRepository;
-        _passwordHasher = passwordHasher;
-        _logger = logger;
-    }
-
     /// <summary>
     /// Obtém os dados do usuário autenticado.
     /// </summary>
@@ -66,7 +26,7 @@ public sealed class UserService : IUserService
     /// <returns>Dados públicos do usuário autenticado.</returns>
     public async Task<GetUserResponseDTO> GetCurrentAsync(CancellationToken cancellationToken)
     {
-        var userId = _currentUserService.GetUserId();
+        var userId = currentUserService.GetUserId();
         var user = await GetUserAsync(userId, cancellationToken);
 
         return MapToGetResponse(user);
@@ -78,10 +38,12 @@ public sealed class UserService : IUserService
     /// <param name="request">Dados do perfil que serão atualizados.</param>
     /// <param name="cancellationToken">Token para cancelar a operação.</param>
     /// <returns>Dados atualizados do usuário.</returns>
-    public async Task<UpdateUserResponseDTO> UpdateProfileAsync(UpdateUserRequestDTO request,
-                                                                 CancellationToken cancellationToken)
+    public async Task<UpdateUserResponseDTO> UpdateProfileAsync(
+        UpdateUserRequestDTO request,
+        CancellationToken cancellationToken
+    )
     {
-        var userId = _currentUserService.GetUserId();
+        var userId = currentUserService.GetUserId();
         var user = await GetUserAsync(userId, cancellationToken);
 
         if (request.FirstName is not null)
@@ -105,7 +67,7 @@ public sealed class UserService : IUserService
             if (!string.Equals(user.Bio, updatedBio, StringComparison.Ordinal))
             {
                 user.Bio = updatedBio;
-                await _questionRepository.DeleteCurrentAsync(user.Id, cancellationToken);
+                await questionRepository.DeleteCurrentAsync(user.Id, cancellationToken);
             }
         }
 
@@ -114,12 +76,12 @@ public sealed class UserService : IUserService
             user.ProfileImageBase64 = NormalizeProfileImage(request.ProfileImageBase64);
         }
 
-        user.UpdatedAt = DateTimeOffset.UtcNow;
+        user.UpdatedAt = timeProvider.GetUtcNow();
 
-        _userRepository.Update(user);
-        await _userRepository.SaveChangesAsync(cancellationToken);
+        userRepository.Update(user);
+        await userRepository.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("User profile updated. UserId: {UserId}", user.Id);
+        logger.LogInformation("User profile updated. UserId: {UserId}", user.Id);
 
         return MapToUpdateResponse(user);
     }
@@ -130,21 +92,23 @@ public sealed class UserService : IUserService
     /// <param name="request">Novo endereço de e-mail, nova senha e sua confirmação.</param>
     /// <param name="cancellationToken">Token para cancelar a operação.</param>
     /// <returns>Tarefa que representa a operação assíncrona.</returns>
-    public async Task UpdateCredentialsAsync(UpdateUserCredentialsRequestDTO request,
-                                             CancellationToken cancellationToken)
+    public async Task UpdateCredentialsAsync(
+        UpdateUserCredentialsRequestDTO request,
+        CancellationToken cancellationToken
+    )
     {
-        var userId = _currentUserService.GetUserId();
+        var userId = currentUserService.GetUserId();
         var user = await GetUserAsync(userId, cancellationToken);
 
         await UpdateEmailAsync(user, request.Email, cancellationToken);
 
-        user.PasswordHash = _passwordHasher.HashPassword(user, request.Password);
-        user.UpdatedAt = DateTimeOffset.UtcNow;
+        user.PasswordHash = passwordHasher.HashPassword(user, request.Password);
+        user.UpdatedAt = timeProvider.GetUtcNow();
 
-        _userRepository.Update(user);
-        await _userRepository.SaveChangesAsync(cancellationToken);
+        userRepository.Update(user);
+        await userRepository.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("User credentials updated. UserId: {UserId}", user.Id);
+        logger.LogInformation("User credentials updated. UserId: {UserId}", user.Id);
     }
 
     /// <summary>
@@ -158,8 +122,10 @@ public sealed class UserService : IUserService
     {
         var normalizedEmail = EmailNormalizerHelper.Normalize(email);
 
-        if (normalizedEmail != user.NormalizedEmail &&
-            await _userRepository.ExistsByNormalizedEmailAsync(normalizedEmail, cancellationToken))
+        if (
+            normalizedEmail != user.NormalizedEmail
+            && await userRepository.ExistsByNormalizedEmailAsync(normalizedEmail, cancellationToken)
+        )
         {
             throw new ConflictException("Já existe uma conta cadastrada com este e-mail.");
         }
@@ -176,12 +142,16 @@ public sealed class UserService : IUserService
     /// <returns>Usuário encontrado.</returns>
     private async Task<UserModel> GetUserAsync(Guid userId, CancellationToken cancellationToken)
     {
-        var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
+        var user = await userRepository.GetByIdAsync(userId, cancellationToken);
 
-        return user
-            ?? throw new NotFoundException("O usuário autenticado não foi encontrado.");
+        return user ?? throw new NotFoundException("O usuário autenticado não foi encontrado.");
     }
 
+    /// <summary>
+    /// Normaliza e valida uma imagem de perfil codificada em Base64.
+    /// </summary>
+    /// <param name="profileImageBase64">Imagem de perfil informada pelo usuário.</param>
+    /// <returns>Imagem normalizada ou valor nulo quando nenhuma imagem foi informada.</returns>
     private static string? NormalizeProfileImage(string profileImageBase64)
     {
         var value = profileImageBase64.Trim();
@@ -224,7 +194,7 @@ public sealed class UserService : IUserService
             Proficiency = user.Proficiency,
             Bio = user.Bio,
             ProfileImageBase64 = user.ProfileImageBase64,
-            CreatedAt = user.CreatedAt
+            CreatedAt = user.CreatedAt,
         };
     }
 
@@ -246,7 +216,7 @@ public sealed class UserService : IUserService
             Proficiency = user.Proficiency,
             Bio = user.Bio,
             ProfileImageBase64 = user.ProfileImageBase64,
-            CreatedAt = user.CreatedAt
+            CreatedAt = user.CreatedAt,
         };
     }
 }

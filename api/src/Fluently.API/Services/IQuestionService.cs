@@ -21,8 +21,10 @@ public interface IQuestionService
     /// <param name="request">Parâmetros de paginação.</param>
     /// <param name="cancellationToken">Token para cancelar a operação.</param>
     /// <returns>Página de questões do usuário.</returns>
-    Task<PaginatedResponseDTO<QuestionDetailsResponseDTO>> GetAllAsync(PaginationRequestDTO request,
-                                                                       CancellationToken cancellationToken);
+    Task<PaginatedResponseDTO<QuestionDetailsResponseDTO>> PaginateAsync(
+        PaginationRequestDTO request,
+        CancellationToken cancellationToken
+    );
 
     /// <summary>
     /// Obtém uma questão do usuário autenticado.
@@ -46,7 +48,9 @@ public interface IQuestionService
     /// <param name="request">Resposta enviada pelo estudante.</param>
     /// <param name="cancellationToken">Token para cancelar a operação.</param>
     /// <returns>Resultado da resposta e progresso atualizado.</returns>
-    Task<QuestionAnswerResponseDTO> SubmitAnswerAsync(Guid questionId,
-                                                      SubmitQuestionAnswerRequestDTO request,
-                                                      CancellationToken cancellationToken);
+    Task<QuestionAnswerResponseDTO> SubmitAnswerAsync(
+        Guid questionId,
+        SubmitQuestionAnswerRequestDTO request,
+        CancellationToken cancellationToken
+    );
 }

@@ -10,55 +10,16 @@ namespace Fluently.API.Services;
 /// <summary>
 /// Criação, consulta e resposta das questões do estudante.
 /// </summary>
-public sealed class QuestionService : IQuestionService
+public sealed class QuestionService(
+    ICurrentUserService currentUserService,
+    IUserRepository userRepository,
+    IQuestionRepository questionRepository,
+    IQuestionGenerationService questionGenerationService,
+    ILogger<QuestionService> logger,
+    TimeProvider timeProvider
+) : IQuestionService
 {
     private const int StreakMultiplierThreshold = 3;
-
-    /// <summary>
-    /// Serviço do usuário atual.
-    /// </summary>
-    private readonly ICurrentUserService _currentUserService;
-
-    /// <summary>
-    /// Repositório de usuários.
-    /// </summary>
-    private readonly IUserRepository _userRepository;
-
-    /// <summary>
-    /// Repositório de questões.
-    /// </summary>
-    private readonly IQuestionRepository _questionRepository;
-
-    /// <summary>
-    /// Serviço de geração de questões.
-    /// </summary>
-    private readonly IQuestionGenerationService _questionGenerationService;
-
-    /// <summary>
-    /// Registrador de exercícios.
-    /// </summary>
-    private readonly ILogger<QuestionService> _logger;
-
-    /// <summary>
-    /// Inicializa uma nova instância do serviço de questões.
-    /// </summary>
-    /// <param name="currentUserService">Serviço utilizado para identificar o usuário atual.</param>
-    /// <param name="userRepository">Repositório utilizado para acessar os usuários.</param>
-    /// <param name="questionRepository">Repositório utilizado para acessar as questões.</param>
-    /// <param name="questionGenerationService">Serviço utilizado para gerar questões.</param>
-    /// <param name="logger">Registrador dos eventos internos dos exercícios.</param>
-    public QuestionService(ICurrentUserService currentUserService,
-                           IUserRepository userRepository,
-                           IQuestionRepository questionRepository,
-                           IQuestionGenerationService questionGenerationService,
-                           ILogger<QuestionService> logger)
-    {
-        _currentUserService = currentUserService;
-        _userRepository = userRepository;
-        _questionRepository = questionRepository;
-        _questionGenerationService = questionGenerationService;
-        _logger = logger;
-    }
 
     /// <summary>
     /// Obtém a questão pendente.
@@ -67,8 +28,8 @@ public sealed class QuestionService : IQuestionService
     /// <returns>Questão pendente.</returns>
     public async Task<QuestionResponseDTO> GetCurrentAsync(CancellationToken cancellationToken)
     {
-        var userId = _currentUserService.GetUserId();
-        var question = await _questionRepository.GetCurrentAsync(userId, cancellationToken);
+        var userId = currentUserService.GetUserId();
+        var question = await questionRepository.GetCurrentAsync(userId, cancellationToken);
 
         if (question is null)
         {
@@ -84,17 +45,21 @@ public sealed class QuestionService : IQuestionService
     /// <param name="request">Parâmetros de paginação.</param>
     /// <param name="cancellationToken">Token para cancelar a operação.</param>
     /// <returns>Página de questões.</returns>
-    public async Task<PaginatedResponseDTO<QuestionDetailsResponseDTO>> GetAllAsync(PaginationRequestDTO request,
-                                                                                      CancellationToken cancellationToken)
+    public async Task<PaginatedResponseDTO<QuestionDetailsResponseDTO>> PaginateAsync(
+        PaginationRequestDTO request,
+        CancellationToken cancellationToken
+    )
     {
-        var userId = _currentUserService.GetUserId();
+        var userId = currentUserService.GetUserId();
         var skip = PaginationHelper.CalculateSkip(request);
-        var totalItems = await _questionRepository.CountByUserAsync(userId, cancellationToken);
-        var questions = await _questionRepository.GetPageByUserAsync(
+        var totalItems = await questionRepository.CountByUserAsync(userId, request.Search, cancellationToken);
+        var questions = await questionRepository.GetPageByUserAsync(
             userId,
             skip,
             request.PageSize,
-            cancellationToken);
+            request.Search,
+            cancellationToken
+        );
         var items = questions.Select(MapToDetailsResponse).ToArray();
 
         return PaginationHelper.CreateResponse(items, request, totalItems);
@@ -108,8 +73,8 @@ public sealed class QuestionService : IQuestionService
     /// <returns>Questão encontrada.</returns>
     public async Task<QuestionDetailsResponseDTO> GetByIdAsync(Guid questionId, CancellationToken cancellationToken)
     {
-        var userId = _currentUserService.GetUserId();
-        var question = await _questionRepository.GetByIdAsync(questionId, userId, cancellationToken);
+        var userId = currentUserService.GetUserId();
+        var question = await questionRepository.GetByIdAsync(questionId, userId, cancellationToken);
 
         if (question is null)
         {
@@ -126,7 +91,7 @@ public sealed class QuestionService : IQuestionService
     /// <returns>Questão criada.</returns>
     public async Task<QuestionResponseDTO> CreateAsync(CancellationToken cancellationToken)
     {
-        var userId = _currentUserService.GetUserId();
+        var userId = currentUserService.GetUserId();
         var user = await GetUserAsync(userId, cancellationToken);
 
         EnsureLearningSettingsAreComplete(user);
@@ -141,19 +106,15 @@ public sealed class QuestionService : IQuestionService
     /// <param name="user">Usuário que receberá a questão.</param>
     /// <param name="cancellationToken">Token para cancelar a operação.</param>
     /// <returns>Questão criada.</returns>
-    private async Task<QuestionResponseDTO> CreateForUserAsync(UserModel user,
-                                                                CancellationToken cancellationToken)
+    private async Task<QuestionResponseDTO> CreateForUserAsync(UserModel user, CancellationToken cancellationToken)
     {
-        var generatedQuestion = await _questionGenerationService.GenerateAsync(user, cancellationToken);
+        var generatedQuestion = await questionGenerationService.GenerateAsync(user, cancellationToken);
         var question = CreateQuestion(user, generatedQuestion);
 
-        await _questionRepository.AddAsync(question, cancellationToken);
-        await _questionRepository.SaveChangesAsync(cancellationToken);
+        await questionRepository.AddAsync(question, cancellationToken);
+        await questionRepository.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation(
-            "Question created. QuestionId: {QuestionId}, UserId: {UserId}",
-            question.Id,
-            user.Id);
+        logger.LogInformation("Question created. QuestionId: {QuestionId}, UserId: {UserId}", question.Id, user.Id);
 
         return MapToResponse(question);
     }
@@ -165,11 +126,13 @@ public sealed class QuestionService : IQuestionService
     /// <param name="request">Índice da alternativa enviada pelo estudante.</param>
     /// <param name="cancellationToken">Token para cancelar a operação.</param>
     /// <returns>Resultado da resposta e progresso atualizado.</returns>
-    public async Task<QuestionAnswerResponseDTO> SubmitAnswerAsync(Guid questionId,
-                                                                    SubmitQuestionAnswerRequestDTO request,
-                                                                    CancellationToken cancellationToken)
+    public async Task<QuestionAnswerResponseDTO> SubmitAnswerAsync(
+        Guid questionId,
+        SubmitQuestionAnswerRequestDTO request,
+        CancellationToken cancellationToken
+    )
     {
-        var userId = _currentUserService.GetUserId();
+        var userId = currentUserService.GetUserId();
         var question = await GetOwnedQuestionAsync(userId, questionId, cancellationToken);
 
         if (question.AnsweredAt is not null)
@@ -182,16 +145,17 @@ public sealed class QuestionService : IQuestionService
 
         ApplyAnswer(question, request.AlternativeIndex, isCorrect, awardedXp);
 
-        _questionRepository.Update(question);
-        await _questionRepository.SaveChangesAsync(cancellationToken);
+        questionRepository.Update(question);
+        await questionRepository.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation(
-            "Question answered. QuestionId: {QuestionId}, UserId: {UserId}, " +
-            "IsCorrect: {IsCorrect}, AwardedXp: {AwardedXp}",
+        logger.LogInformation(
+            "Question answered. QuestionId: {QuestionId}, UserId: {UserId}, "
+                + "IsCorrect: {IsCorrect}, AwardedXp: {AwardedXp}",
             questionId,
             userId,
             isCorrect,
-            awardedXp);
+            awardedXp
+        );
 
         return MapToAnswerResponse(question);
     }
@@ -204,7 +168,7 @@ public sealed class QuestionService : IQuestionService
     /// <returns>Usuário encontrado.</returns>
     private async Task<UserModel> GetUserAsync(Guid userId, CancellationToken cancellationToken)
     {
-        return await _userRepository.GetByIdAsync(userId, cancellationToken)
+        return await userRepository.GetByIdAsync(userId, cancellationToken)
             ?? throw new NotFoundException("O usuário autenticado não foi encontrado.");
     }
 
@@ -216,12 +180,11 @@ public sealed class QuestionService : IQuestionService
     /// <returns>Tarefa que representa a verificação assíncrona.</returns>
     private async Task EnsureThereIsNoPendingQuestionAsync(Guid userId, CancellationToken cancellationToken)
     {
-        var currentQuestion = await _questionRepository.GetCurrentAsync(userId, cancellationToken);
+        var currentQuestion = await questionRepository.GetCurrentAsync(userId, cancellationToken);
 
         if (currentQuestion is not null)
         {
-            throw new ConflictException(
-                "Responda a questão atual antes de solicitar uma nova questão.");
+            throw new ConflictException("Responda a questão atual antes de solicitar uma nova questão.");
         }
     }
 
@@ -232,11 +195,13 @@ public sealed class QuestionService : IQuestionService
     /// <param name="questionId">Identificador da questão.</param>
     /// <param name="cancellationToken">Token para cancelar a operação.</param>
     /// <returns>Questão encontrada.</returns>
-    private async Task<QuestionModel> GetOwnedQuestionAsync(Guid userId,
-                                                            Guid questionId,
-                                                            CancellationToken cancellationToken)
+    private async Task<QuestionModel> GetOwnedQuestionAsync(
+        Guid userId,
+        Guid questionId,
+        CancellationToken cancellationToken
+    )
     {
-        var question = await _questionRepository.GetOwnedAsync(questionId, userId, cancellationToken);
+        var question = await questionRepository.GetOwnedAsync(questionId, userId, cancellationToken);
 
         return question ?? throw new NotFoundException("A questão não foi encontrada.");
     }
@@ -247,13 +212,11 @@ public sealed class QuestionService : IQuestionService
     /// <param name="user">Usuário que terá os dados verificados.</param>
     private static void EnsureLearningSettingsAreComplete(UserModel user)
     {
-        var hasValidProficiency = user.Proficiency.HasValue &&
-                                  Enum.IsDefined(user.Proficiency.Value);
+        var hasValidProficiency = user.Proficiency.HasValue && Enum.IsDefined(user.Proficiency.Value);
 
         if (!hasValidProficiency || string.IsNullOrWhiteSpace(user.Bio))
         {
-            throw new BadRequestException(
-                "Preencha seu nível de proficiência e biografia antes de gerar uma questão.");
+            throw new BadRequestException("Preencha seu nível de proficiência e biografia antes de gerar uma questão.");
         }
     }
 
@@ -274,11 +237,11 @@ public sealed class QuestionService : IQuestionService
             QuestionTranslation = generatedQuestion.QuestionTranslation,
             ContextFingerprint = generatedQuestion.ContextFingerprint,
             Alternatives = generatedQuestion.Alternatives.Select(alternative => alternative.Text).ToArray(),
-            AlternativeTranslations = generatedQuestion.Alternatives
-                .Select(alternative => alternative.Translation)
+            AlternativeTranslations = generatedQuestion
+                .Alternatives.Select(alternative => alternative.Translation)
                 .ToArray(),
             CorrectAlternativeIndex = generatedQuestion.CorrectAlternativeIndex,
-            BaseXp = 15
+            BaseXp = 15,
         };
     }
 
@@ -289,16 +252,13 @@ public sealed class QuestionService : IQuestionService
     /// <param name="alternativeIndex">Índice da alternativa enviada.</param>
     /// <param name="isCorrect">Valor que indica se a resposta está correta.</param>
     /// <param name="awardedXp">Experiência concedida pela resposta.</param>
-    private static void ApplyAnswer(QuestionModel question,
-                                    int alternativeIndex,
-                                    bool isCorrect,
-                                    int awardedXp)
+    private void ApplyAnswer(QuestionModel question, int alternativeIndex, bool isCorrect, int awardedXp)
     {
         question.SubmittedAlternativeIndex = alternativeIndex;
         question.IsCorrect = isCorrect;
         question.AwardedXp = awardedXp;
         question.StreakAfterAnswer = question.User.CurrentStreak;
-        question.AnsweredAt = DateTimeOffset.UtcNow;
+        question.AnsweredAt = timeProvider.GetUtcNow();
     }
 
     /// <summary>
@@ -317,9 +277,7 @@ public sealed class QuestionService : IQuestionService
             return 0;
         }
 
-        var awardedXp = user.CurrentStreak + 1 >= StreakMultiplierThreshold
-            ? baseXp * 2
-            : baseXp;
+        var awardedXp = user.CurrentStreak + 1 >= StreakMultiplierThreshold ? baseXp * 2 : baseXp;
 
         user.CurrentStreak++;
         user.TotalXp += awardedXp;
@@ -334,13 +292,16 @@ public sealed class QuestionService : IQuestionService
     /// <returns>Alternativas com índice e tradução.</returns>
     private static IReadOnlyList<QuestionAlternativeResponseDTO> MapAlternatives(QuestionModel question)
     {
-        return question.Alternatives
-            .Select((alternative, index) => new QuestionAlternativeResponseDTO
-            {
-                Index = index + 1,
-                Text = alternative,
-                Translation = question.AlternativeTranslations[index]
-            })
+        return question
+            .Alternatives.Select(
+                (alternative, index) =>
+                    new QuestionAlternativeResponseDTO
+                    {
+                        Index = index + 1,
+                        Text = alternative,
+                        Translation = question.AlternativeTranslations[index],
+                    }
+            )
             .ToArray();
     }
 
@@ -357,7 +318,7 @@ public sealed class QuestionService : IQuestionService
         {
             Index = question.CorrectAlternativeIndex,
             Text = question.Alternatives[index],
-            Translation = question.AlternativeTranslations[index]
+            Translation = question.AlternativeTranslations[index],
         };
     }
 
@@ -375,7 +336,7 @@ public sealed class QuestionService : IQuestionService
             Question = question.Question,
             Alternatives = MapAlternatives(question),
             BaseXp = question.BaseXp,
-            CreatedAt = question.CreatedAt
+            CreatedAt = question.CreatedAt,
         };
     }
 
@@ -401,7 +362,7 @@ public sealed class QuestionService : IQuestionService
             IsCorrect = question.IsCorrect,
             AwardedXp = question.AwardedXp,
             CreatedAt = question.CreatedAt,
-            AnsweredAt = question.AnsweredAt
+            AnsweredAt = question.AnsweredAt,
         };
     }
 
@@ -421,7 +382,7 @@ public sealed class QuestionService : IQuestionService
             CurrentStreak = question.StreakAfterAnswer!.Value,
             CorrectAlternative = MapCorrectAlternative(question),
             QuestionTranslation = question.QuestionTranslation,
-            AnsweredAt = question.AnsweredAt!.Value
+            AnsweredAt = question.AnsweredAt!.Value,
         };
     }
 }

@@ -20,7 +20,8 @@ public abstract class ApiException : Exception
     /// </summary>
     /// <param name="statusCode">Código HTTP associado ao erro.</param>
     /// <param name="detail">Detalhe público do erro.</param>
-    protected ApiException(int statusCode, string detail) : base(detail)
+    protected ApiException(int statusCode, string detail)
+        : base(detail)
     {
         StatusCode = statusCode;
         Detail = detail;

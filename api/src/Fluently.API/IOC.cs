@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-
 using Fluently.API.Data.Context;
 using Fluently.API.Filters;
 using Fluently.API.Helpers;
@@ -11,10 +10,8 @@ using Fluently.API.Models;
 using Fluently.API.Options;
 using Fluently.API.Repositories;
 using Fluently.API.Services;
-
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
@@ -24,7 +21,6 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-
 using OpenAI.Chat;
 
 namespace Fluently.API;
@@ -81,22 +77,6 @@ public static class IOC
     }
 
     /// <summary>
-    /// Aplica as migrações pendentes antes de iniciar a aplicação.
-    /// </summary>
-    /// <param name="app">Aplicação que fornecerá o contexto do banco de dados.</param>
-    /// <param name="cancellationToken">Token para cancelar a operação.</param>
-    /// <returns>Aplicação com o banco de dados atualizado.</returns>
-    public static async Task<WebApplication> ApplyDatabaseMigrationsAsync(this WebApplication app, CancellationToken cancellationToken = default)
-    {
-        await using var scope = app.Services.CreateAsyncScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-        await dbContext.Database.MigrateAsync(cancellationToken);
-
-        return app;
-    }
-
-    /// <summary>
     /// Mapeia os controladores e as rotas de diagnóstico da aplicação.
     /// </summary>
     /// <param name="app">Aplicação Web que receberá as rotas.</param>
@@ -104,16 +84,6 @@ public static class IOC
     public static WebApplication MapApplicationRoutes(this WebApplication app)
     {
         app.MapControllers();
-
-        app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false })
-            .WithTags("Sistema")
-            .WithName("Disponibilidade")
-            .WithDescription("Verifica se o processo da API está em execução.");
-
-        app.MapHealthChecks("/health/ready", new HealthCheckOptions())
-            .WithTags("Sistema")
-            .WithName("Prontidão")
-            .WithDescription("Verifica se as dependências da API estão disponíveis.");
 
         return app;
     }
@@ -139,15 +109,12 @@ public static class IOC
     /// <param name="builder">Construtor da aplicação Web.</param>
     private static void ConfigureApi(WebApplicationBuilder builder)
     {
-        builder.Services
-            .AddControllers()
+        builder
+            .Services.AddControllers()
             .AddJsonOptions(options =>
             {
-                options.JsonSerializerOptions.DefaultIgnoreCondition =
-                    JsonIgnoreCondition.WhenWritingNull;
-                options.JsonSerializerOptions.Converters.Insert(
-                    0,
-                    new TrimStringJsonConverterHelper());
+                options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+                options.JsonSerializerOptions.Converters.Insert(0, new TrimStringJsonConverterHelper());
             });
 
         builder.Services.Configure<ApiBehaviorOptions>(options =>
@@ -158,34 +125,42 @@ public static class IOC
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen(options =>
         {
-            options.SwaggerDoc("v1", new OpenApiInfo
-            {
-                Title = "Fluently.API",
-                Version = "v1",
-                Description = "API principal do app Fluently - Plataforma de aprendizagem contínua de inglês para estudantes brasileiros."
-            });
-
-            options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-            {
-                Name = "Authorization",
-                Type = SecuritySchemeType.Http,
-                Scheme = "bearer",
-                BearerFormat = "JWT",
-                In = ParameterLocation.Header,
-                Description = "Informe o token JWT de acesso."
-            });
-
-            options.AddSecurityRequirement(new OpenApiSecurityRequirement
-            {
-                [new OpenApiSecurityScheme
+            options.SwaggerDoc(
+                "v1",
+                new OpenApiInfo
                 {
-                    Reference = new OpenApiReference
-                    {
-                        Type = ReferenceType.SecurityScheme,
-                        Id = "Bearer"
-                    }
-                }] = []
-            });
+                    Title = "Fluently.API",
+                    Version = "v1",
+                    Description =
+                        "API principal do app Fluently - "
+                        + "Plataforma de aprendizagem contínua de inglês para estudantes brasileiros.",
+                }
+            );
+
+            options.AddSecurityDefinition(
+                "Bearer",
+                new OpenApiSecurityScheme
+                {
+                    Name = "Authorization",
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "bearer",
+                    BearerFormat = "JWT",
+                    In = ParameterLocation.Header,
+                    Description = "Informe o token JWT de acesso.",
+                }
+            );
+
+            options.AddSecurityRequirement(
+                new OpenApiSecurityRequirement
+                {
+                    [
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" },
+                        }
+                    ] = [],
+                }
+            );
 
             var xmlFileName = $"{typeof(IOC).Assembly.GetName().Name}.xml";
             var xmlFilePath = Path.Combine(AppContext.BaseDirectory, xmlFileName);
@@ -211,14 +186,14 @@ public static class IOC
     /// <param name="builder">Construtor da aplicação Web.</param>
     private static void ConfigureOptions(WebApplicationBuilder builder)
     {
-        builder.Services
-            .AddOptions<JwtOptions>()
+        builder
+            .Services.AddOptions<JwtOptions>()
             .Bind(builder.Configuration.GetSection(JwtOptions.SectionName))
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        builder.Services
-            .AddOptions<OpenAIOptions>()
+        builder
+            .Services.AddOptions<OpenAIOptions>()
             .Bind(builder.Configuration.GetSection(OpenAIOptions.SectionName))
             .ValidateDataAnnotations()
             .ValidateOnStart();
@@ -234,8 +209,7 @@ public static class IOC
 
         if (string.IsNullOrWhiteSpace(connectionString))
         {
-            throw new InvalidOperationException(
-                "ConnectionStrings:DefaultConnection must be configured.");
+            throw new InvalidOperationException("ConnectionStrings:DefaultConnection must be configured.");
         }
 
         builder.Services.AddDbContext<AppDbContext>(options =>
@@ -258,11 +232,14 @@ public static class IOC
         builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
         builder.Services.AddScoped<IUserRepository, UserRepository>();
         builder.Services.AddScoped<IQuestionRepository, QuestionRepository>();
+        builder.Services.AddScoped<ITaskRepository, TaskRepository>();
 
         builder.Services.AddScoped<IAuthService, AuthService>();
         builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
         builder.Services.AddScoped<IUserService, UserService>();
         builder.Services.AddScoped<IQuestionService, QuestionService>();
+        builder.Services.AddScoped<ITaskService, TaskService>();
+        builder.Services.AddScoped<IDailyXpGoalService, DailyXpGoalService>();
         builder.Services.AddScoped<ILeaderboardService, LeaderboardService>();
         builder.Services.AddScoped<IQuestionGenerationService, QuestionGenerationService>();
 
@@ -282,9 +259,7 @@ public static class IOC
     /// <param name="builder">Construtor da aplicação Web.</param>
     private static void ConfigureHealthChecks(WebApplicationBuilder builder)
     {
-        builder.Services
-            .AddHealthChecks()
-            .AddDbContextCheck<AppDbContext>();
+        builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>();
     }
 
     /// <summary>
@@ -296,30 +271,29 @@ public static class IOC
         builder.Services.AddSingleton<IPasswordHasher<UserModel>, PasswordHasher<UserModel>>();
         builder.Services.AddSingleton<ITokenService, JwtTokenService>();
 
-        builder.Services
-            .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer();
+        builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
 
-        builder.Services
-            .AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
-            .Configure<IOptions<JwtOptions>>((options, jwtOptionsAccessor) =>
-            {
-                var jwtOptions = jwtOptionsAccessor.Value;
-
-                options.MapInboundClaims = false;
-                options.TokenValidationParameters = new TokenValidationParameters
+        builder
+            .Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+            .Configure<IOptions<JwtOptions>>(
+                (options, jwtOptionsAccessor) =>
                 {
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateLifetime = true,
-                    ValidateIssuerSigningKey = true,
-                    ValidIssuer = jwtOptions.Issuer,
-                    ValidAudience = jwtOptions.Audience,
-                    IssuerSigningKey = new SymmetricSecurityKey(
-                        Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
-                    ClockSkew = TimeSpan.Zero
-                };
-            });
+                    var jwtOptions = jwtOptionsAccessor.Value;
+
+                    options.MapInboundClaims = false;
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuer = true,
+                        ValidateAudience = true,
+                        ValidateLifetime = true,
+                        ValidateIssuerSigningKey = true,
+                        ValidIssuer = jwtOptions.Issuer,
+                        ValidAudience = jwtOptions.Audience,
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SigningKey)),
+                        ClockSkew = TimeSpan.Zero,
+                    };
+                }
+            );
 
         builder.Services.AddAuthorization();
     }
@@ -331,15 +305,14 @@ public static class IOC
     /// <returns>Resposta HTTP contendo os erros localizados.</returns>
     private static IActionResult CreateValidationProblemResponse(ActionContext context)
     {
-        var traceId = Activity.Current?.TraceId.ToString()
-            ?? context.HttpContext.TraceIdentifier;
+        var traceId = Activity.Current?.TraceId.ToString() ?? context.HttpContext.TraceIdentifier;
         var errors = GetLocalizedValidationErrors(context);
         var problemDetails = new ValidationProblemDetails(errors)
         {
             Status = StatusCodes.Status400BadRequest,
             Title = ReasonPhrases.GetReasonPhrase(StatusCodes.Status400BadRequest),
             Detail = "Corrija os campos informados e tente novamente.",
-            Instance = context.HttpContext.Request.Path
+            Instance = context.HttpContext.Request.Path,
         };
 
         problemDetails.Extensions["traceId"] = traceId;
@@ -357,14 +330,13 @@ public static class IOC
     /// <returns>Dicionário de erros agrupados por campo.</returns>
     private static Dictionary<string, string[]> GetLocalizedValidationErrors(ActionContext context)
     {
-        return context.ModelState
-            .Where(entry => entry.Value is not null && entry.Value.Errors.Count > 0)
+        return context
+            .ModelState.Where(entry => entry.Value is not null && entry.Value.Errors.Count > 0)
             .ToDictionary(
                 entry => entry.Key,
-                entry => entry.Value!.Errors
-                    .Select(GetLocalizedValidationError)
-                    .Distinct(StringComparer.Ordinal)
-                    .ToArray());
+                entry =>
+                    entry.Value!.Errors.Select(GetLocalizedValidationError).Distinct(StringComparer.Ordinal).ToArray()
+            );
     }
 
     /// <summary>
@@ -384,9 +356,7 @@ public static class IOC
             return "O corpo da solicitação é obrigatório.";
         }
 
-        return string.IsNullOrWhiteSpace(error.ErrorMessage)
-            ? "O valor informado é inválido."
-            : error.ErrorMessage;
+        return string.IsNullOrWhiteSpace(error.ErrorMessage) ? "O valor informado é inválido." : error.ErrorMessage;
     }
 
     /// <summary>
@@ -403,20 +373,14 @@ public static class IOC
             return;
         }
 
-        var problemDetailsService =
-            httpContext.RequestServices.GetRequiredService<IProblemDetailsService>();
+        var problemDetailsService = httpContext.RequestServices.GetRequiredService<IProblemDetailsService>();
         var statusCode = httpContext.Response.StatusCode;
         var traceId = Activity.Current?.TraceId.ToString() ?? httpContext.TraceIdentifier;
-        var problemDetails = CreateStatusCodeProblemDetails(
-            statusCode,
-            httpContext.Request.Path,
-            traceId);
+        var problemDetails = CreateStatusCodeProblemDetails(statusCode, httpContext.Request.Path, traceId);
 
-        await problemDetailsService.WriteAsync(new ProblemDetailsContext
-        {
-            HttpContext = httpContext,
-            ProblemDetails = problemDetails
-        });
+        await problemDetailsService.WriteAsync(
+            new ProblemDetailsContext { HttpContext = httpContext, ProblemDetails = problemDetails }
+        );
     }
 
     /// <summary>
@@ -426,23 +390,16 @@ public static class IOC
     /// <param name="instance">Caminho da requisição associada ao erro.</param>
     /// <param name="traceId">Identificador de rastreamento da requisição.</param>
     /// <returns>Detalhes padronizados do problema.</returns>
-    private static ProblemDetails CreateStatusCodeProblemDetails(int statusCode,
-                                                                 string instance,
-                                                                 string traceId)
+    private static ProblemDetails CreateStatusCodeProblemDetails(int statusCode, string instance, string traceId)
     {
         var detail = statusCode switch
         {
-            StatusCodes.Status400BadRequest =>
-                "A requisição não pôde ser processada.",
-            StatusCodes.Status401Unauthorized =>
-                "A autenticação é obrigatória para acessar este recurso.",
-            StatusCodes.Status403Forbidden =>
-                "Você não possui permissão para acessar este recurso.",
-            StatusCodes.Status404NotFound =>
-                "O recurso solicitado não foi encontrado.",
-            StatusCodes.Status409Conflict =>
-                "A requisição entra em conflito com o estado atual do recurso.",
-            _ => "Tente novamente em instantes."
+            StatusCodes.Status400BadRequest => "A requisição não pôde ser processada.",
+            StatusCodes.Status401Unauthorized => "A autenticação é obrigatória para acessar este recurso.",
+            StatusCodes.Status403Forbidden => "Você não possui permissão para acessar este recurso.",
+            StatusCodes.Status404NotFound => "O recurso solicitado não foi encontrado.",
+            StatusCodes.Status409Conflict => "A requisição entra em conflito com o estado atual do recurso.",
+            _ => "Tente novamente em instantes.",
         };
 
         var problemDetails = new ProblemDetails
@@ -450,7 +407,7 @@ public static class IOC
             Status = statusCode,
             Title = ReasonPhrases.GetReasonPhrase(statusCode),
             Detail = detail,
-            Instance = instance
+            Instance = instance,
         };
 
         problemDetails.Extensions["traceId"] = traceId;

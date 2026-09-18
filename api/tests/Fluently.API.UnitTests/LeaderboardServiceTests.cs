@@ -2,7 +2,6 @@ using Fluently.API.DTOs.Common;
 using Fluently.API.Models;
 using Fluently.API.Repositories;
 using Fluently.API.Services;
-
 using Moq;
 
 namespace Fluently.API.UnitTests;
@@ -15,22 +14,14 @@ public sealed class LeaderboardServiceTests
     [Fact]
     public async Task GetAsync_RepositoryOrderedUsers_MapsStableRankingAndFullNames()
     {
-        var users = new[]
-        {
-            CreateRankedUser("Ana", "Silva", 90, 1),
-            CreateRankedUser("Bruno", "Souza", 45, 2)
-        };
+        var users = new[] { CreateRankedUser("Ana", "Silva", 90, 1), CreateRankedUser("Bruno", "Souza", 45, 2) };
+        userRepository.Setup(repository => repository.CountLeaderboardAsync(null, cancellationToken)).ReturnsAsync(2);
         userRepository
-            .Setup(repository => repository.CountLeaderboardAsync(cancellationToken))
-            .ReturnsAsync(2);
-        userRepository
-            .Setup(repository => repository.GetLeaderboardPageAsync(0, 20, cancellationToken))
+            .Setup(repository => repository.GetLeaderboardPageAsync(0, 20, null, cancellationToken))
             .ReturnsAsync(users);
         var service = new LeaderboardService(userRepository.Object);
 
-        var response = await service.GetAsync(
-            new PaginationRequestDTO(),
-            cancellationToken);
+        var response = await service.PaginateAsync(new PaginationRequestDTO(), cancellationToken);
 
         Assert.Equal(2, response.Items.Count);
         Assert.Equal(1, response.Items[0].Rank);
@@ -43,43 +34,37 @@ public sealed class LeaderboardServiceTests
     [Fact]
     public async Task GetAsync_SecondPage_RequestsCorrectSliceAndAssignsAbsoluteRanks()
     {
-        var users = new[]
-        {
-            CreateRankedUser("User", "Eleven", 30, 11),
-            CreateRankedUser("User", "Twelve", 15, 12)
-        };
+        var users = new[] { CreateRankedUser("User", "Eleven", 30, 11), CreateRankedUser("User", "Twelve", 15, 12) };
+        userRepository.Setup(repository => repository.CountLeaderboardAsync(null, cancellationToken)).ReturnsAsync(12);
         userRepository
-            .Setup(repository => repository.CountLeaderboardAsync(cancellationToken))
-            .ReturnsAsync(12);
-        userRepository
-            .Setup(repository => repository.GetLeaderboardPageAsync(10, 10, cancellationToken))
+            .Setup(repository => repository.GetLeaderboardPageAsync(10, 10, null, cancellationToken))
             .ReturnsAsync(users);
         var service = new LeaderboardService(userRepository.Object);
 
-        var response = await service.GetAsync(
+        var response = await service.PaginateAsync(
             new PaginationRequestDTO { Page = 2, PageSize = 10 },
-            cancellationToken);
+            cancellationToken
+        );
 
         Assert.Equal(11, response.Items[0].Rank);
         Assert.Equal(12, response.Items[1].Rank);
         Assert.Equal(2, response.TotalPages);
-        userRepository.Verify(repository =>
-            repository.GetLeaderboardPageAsync(10, 10, cancellationToken),
-            Times.Once);
+        userRepository.Verify(
+            repository => repository.GetLeaderboardPageAsync(10, 10, null, cancellationToken),
+            Times.Once
+        );
     }
 
     [Fact]
     public async Task GetAsync_EmptyLeaderboard_ReturnsEmptyPageMetadata()
     {
+        userRepository.Setup(repository => repository.CountLeaderboardAsync(null, cancellationToken)).ReturnsAsync(0);
         userRepository
-            .Setup(repository => repository.CountLeaderboardAsync(cancellationToken))
-            .ReturnsAsync(0);
-        userRepository
-            .Setup(repository => repository.GetLeaderboardPageAsync(0, 20, cancellationToken))
+            .Setup(repository => repository.GetLeaderboardPageAsync(0, 20, null, cancellationToken))
             .ReturnsAsync([]);
         var service = new LeaderboardService(userRepository.Object);
 
-        var response = await service.GetAsync(new PaginationRequestDTO(), cancellationToken);
+        var response = await service.PaginateAsync(new PaginationRequestDTO(), cancellationToken);
 
         Assert.Empty(response.Items);
         Assert.Equal(0, response.TotalItems);
@@ -89,15 +74,13 @@ public sealed class LeaderboardServiceTests
     [Fact]
     public async Task GetAsync_PartialLastPage_RoundsTotalPagesUp()
     {
+        userRepository.Setup(repository => repository.CountLeaderboardAsync(null, cancellationToken)).ReturnsAsync(21);
         userRepository
-            .Setup(repository => repository.CountLeaderboardAsync(cancellationToken))
-            .ReturnsAsync(21);
-        userRepository
-            .Setup(repository => repository.GetLeaderboardPageAsync(0, 20, cancellationToken))
+            .Setup(repository => repository.GetLeaderboardPageAsync(0, 20, null, cancellationToken))
             .ReturnsAsync([]);
         var service = new LeaderboardService(userRepository.Object);
 
-        var response = await service.GetAsync(new PaginationRequestDTO(), cancellationToken);
+        var response = await service.PaginateAsync(new PaginationRequestDTO(), cancellationToken);
 
         Assert.Equal(2, response.TotalPages);
     }
@@ -114,7 +97,7 @@ public sealed class LeaderboardServiceTests
             PasswordHash = "hash",
             TotalXp = totalXp,
             CreatedAt = TestData.Now.AddMinutes(idSuffix),
-            UpdatedAt = TestData.Now.AddMinutes(idSuffix)
+            UpdatedAt = TestData.Now.AddMinutes(idSuffix),
         };
     }
 }

@@ -1,6 +1,5 @@
 using Fluently.API.DTOs.Users;
 using Fluently.API.Services;
-
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,22 +11,8 @@ namespace Fluently.API.Controllers.v1;
 [ApiController]
 [Route("api/v1/auth")]
 [AllowAnonymous]
-public sealed class AuthController : ControllerBase
+public sealed class AuthController(IAuthService authService) : ControllerBase
 {
-    /// <summary>
-    /// Serviço de autenticação.
-    /// </summary>
-    private readonly IAuthService _authService;
-
-    /// <summary>
-    /// Inicializa uma nova instância do controlador de autenticação.
-    /// </summary>
-    /// <param name="authService">Serviço utilizado nas operações de autenticação.</param>
-    public AuthController(IAuthService authService)
-    {
-        _authService = authService;
-    }
-
     /// <summary>
     /// Cadastra uma nova conta de usuário.
     /// </summary>
@@ -40,9 +25,12 @@ public sealed class AuthController : ControllerBase
     [ProducesResponseType<CreateUserResponseDTO>(StatusCodes.Status201Created)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-    public async Task<ActionResult<CreateUserResponseDTO>> RegisterAsync([FromBody] CreateUserRequestDTO request, CancellationToken cancellationToken)
+    public async Task<ActionResult<CreateUserResponseDTO>> RegisterAsync(
+        [FromBody] CreateUserRequestDTO request,
+        CancellationToken cancellationToken
+    )
     {
-        var response = await _authService.RegisterAsync(request, cancellationToken);
+        var response = await authService.RegisterAsync(request, cancellationToken);
         return Created("/api/v1/users/me", response);
     }
 
@@ -58,9 +46,12 @@ public sealed class AuthController : ControllerBase
     [ProducesResponseType<LoginUserResponseDTO>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<LoginUserResponseDTO>> LoginAsync([FromBody] LoginUserRequestDTO request, CancellationToken cancellationToken)
+    public async Task<ActionResult<LoginUserResponseDTO>> LoginAsync(
+        [FromBody] LoginUserRequestDTO request,
+        CancellationToken cancellationToken
+    )
     {
-        var response = await _authService.LoginAsync(request, cancellationToken);
+        var response = await authService.LoginAsync(request, cancellationToken);
         return Ok(response);
     }
 }

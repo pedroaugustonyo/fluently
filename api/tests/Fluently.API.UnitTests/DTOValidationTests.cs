@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-
 using Fluently.API.DTOs.Common;
 using Fluently.API.DTOs.Questions;
 using Fluently.API.DTOs.Users;
@@ -14,8 +13,10 @@ public sealed class DTOValidationTests
     [InlineData("lowercase1!", "A senha deve conter pelo menos uma letra maiúscula.")]
     [InlineData("NoNumber!", "A senha deve conter pelo menos um número.")]
     [InlineData("NoSymbol1", "A senha deve conter pelo menos um símbolo.")]
-    public void RegisterRequest_InvalidPasswordRule_ReturnsPortugueseValidationError(string password,
-                                                                                     string expectedMessage)
+    public void RegisterRequest_InvalidPasswordRule_ReturnsPortugueseValidationError(
+        string password,
+        string expectedMessage
+    )
     {
         var request = CreateRegisterRequest(password, password);
 
@@ -33,7 +34,8 @@ public sealed class DTOValidationTests
 
         Assert.Contains(
             "A confirmação da senha deve ser igual à senha.",
-            results.Select(result => result.ErrorMessage!));
+            results.Select(result => result.ErrorMessage!)
+        );
     }
 
     [Fact]
@@ -67,8 +69,10 @@ public sealed class DTOValidationTests
     [InlineData("Email", "O e-mail é obrigatório.")]
     [InlineData("Password", "A senha é obrigatória.")]
     [InlineData("PasswordConfirmation", "A confirmação da senha é obrigatória.")]
-    public void RegisterRequest_MissingRequiredField_ReturnsPortugueseValidationError(string field,
-                                                                                      string expectedMessage)
+    public void RegisterRequest_MissingRequiredField_ReturnsPortugueseValidationError(
+        string field,
+        string expectedMessage
+    )
     {
         var request = new CreateUserRequestDTO
         {
@@ -76,9 +80,8 @@ public sealed class DTOValidationTests
             LastName = field == nameof(CreateUserRequestDTO.LastName) ? string.Empty : "Oliveira",
             Email = field == nameof(CreateUserRequestDTO.Email) ? string.Empty : "pedro@example.com",
             Password = field == nameof(CreateUserRequestDTO.Password) ? string.Empty : "Valid123!",
-            PasswordConfirmation = field == nameof(CreateUserRequestDTO.PasswordConfirmation)
-                ? string.Empty
-                : "Valid123!"
+            PasswordConfirmation =
+                field == nameof(CreateUserRequestDTO.PasswordConfirmation) ? string.Empty : "Valid123!",
         };
 
         var results = Validate(request);
@@ -104,14 +107,12 @@ public sealed class DTOValidationTests
             FirstName = "Pedro",
             LastName = "Oliveira",
             Proficiency = (ProficiencyLevelEnum)0,
-            Bio = "Quero praticar para uma viagem."
+            Bio = "Quero praticar para uma viagem.",
         };
 
         var results = Validate(request);
 
-        Assert.Contains(
-            "Informe um nível de proficiência válido.",
-            results.Select(result => result.ErrorMessage!));
+        Assert.Contains("Informe um nível de proficiência válido.", results.Select(result => result.ErrorMessage!));
     }
 
     [Fact]
@@ -122,14 +123,12 @@ public sealed class DTOValidationTests
             FirstName = "Pedro",
             LastName = "Oliveira",
             Proficiency = ProficiencyLevelEnum.B1,
-            Bio = string.Empty
+            Bio = string.Empty,
         };
 
         var results = Validate(request);
 
-        Assert.Contains(
-            "A biografia não pode estar vazia.",
-            results.Select(result => result.ErrorMessage!));
+        Assert.Contains("A biografia não pode estar vazia.", results.Select(result => result.ErrorMessage!));
     }
 
     [Fact]
@@ -140,14 +139,12 @@ public sealed class DTOValidationTests
             FirstName = "Pedro",
             LastName = "Oliveira",
             Proficiency = ProficiencyLevelEnum.B1,
-            Bio = new string('a', 2001)
+            Bio = new string('a', 2001),
         };
 
         var results = Validate(request);
 
-        Assert.Contains(
-            "A biografia deve ter até 2000 caracteres.",
-            results.Select(result => result.ErrorMessage!));
+        Assert.Contains("A biografia deve ter até 2000 caracteres.", results.Select(result => result.ErrorMessage!));
     }
 
     [Fact]
@@ -157,7 +154,7 @@ public sealed class DTOValidationTests
         {
             Email = "invalid-email",
             Password = "pass",
-            PasswordConfirmation = "different"
+            PasswordConfirmation = "different",
         };
 
         var results = Validate(request);
@@ -175,9 +172,11 @@ public sealed class DTOValidationTests
     [InlineData(0, 20, "A página deve ser maior ou igual a 1.")]
     [InlineData(1, 0, "A quantidade por página deve estar entre 1 e 100.")]
     [InlineData(1, 101, "A quantidade por página deve estar entre 1 e 100.")]
-    public void PaginationRequest_InvalidBoundary_ReturnsPortugueseValidationError(int page,
-                                                                                   int pageSize,
-                                                                                   string expectedMessage)
+    public void PaginationRequest_InvalidBoundary_ReturnsPortugueseValidationError(
+        int page,
+        int pageSize,
+        string expectedMessage
+    )
     {
         var request = new PaginationRequestDTO { Page = page, PageSize = pageSize };
 
@@ -195,7 +194,8 @@ public sealed class DTOValidationTests
 
         Assert.Contains(
             "Informe um índice de alternativa entre 1 e 5.",
-            results.Select(result => result.ErrorMessage!));
+            results.Select(result => result.ErrorMessage!)
+        );
     }
 
     [Fact]
@@ -207,7 +207,8 @@ public sealed class DTOValidationTests
 
         Assert.Contains(
             "Informe um índice de alternativa entre 1 e 5.",
-            results.Select(result => result.ErrorMessage!));
+            results.Select(result => result.ErrorMessage!)
+        );
     }
 
     [Fact]
@@ -228,7 +229,7 @@ public sealed class DTOValidationTests
             LastName = "Oliveira",
             Email = "pedro@example.com",
             Password = password,
-            PasswordConfirmation = confirmation
+            PasswordConfirmation = confirmation,
         };
     }
 
@@ -239,7 +240,7 @@ public sealed class DTOValidationTests
             FirstName = "Pedro",
             LastName = "Oliveira",
             Proficiency = ProficiencyLevelEnum.B1,
-            Bio = "Quero praticar para uma viagem."
+            Bio = "Quero praticar para uma viagem.",
         };
     }
 

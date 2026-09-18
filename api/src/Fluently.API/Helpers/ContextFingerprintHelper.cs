@@ -17,7 +17,6 @@ public static class ContextFingerprintHelper
     {
         var normalizedContext = AnswerNormalizerHelper.Normalize(context);
 
-        return Convert.ToHexString(
-            SHA256.HashData(Encoding.UTF8.GetBytes(normalizedContext)));
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(normalizedContext)));
     }
 }

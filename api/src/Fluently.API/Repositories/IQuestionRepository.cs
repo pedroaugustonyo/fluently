@@ -8,6 +8,21 @@ namespace Fluently.API.Repositories;
 public interface IQuestionRepository : IBaseRepository<QuestionModel>
 {
     /// <summary>
+    /// Obtém a experiência concedida no intervalo informado.
+    /// </summary>
+    /// <param name="userId">Identificador do usuário.</param>
+    /// <param name="start">Início inclusivo do intervalo.</param>
+    /// <param name="end">Fim exclusivo do intervalo.</param>
+    /// <param name="cancellationToken">Token para cancelar a operação.</param>
+    /// <returns>Experiência concedida.</returns>
+    Task<int> GetAwardedXpAsync(
+        Guid userId,
+        DateTimeOffset start,
+        DateTimeOffset end,
+        CancellationToken cancellationToken
+    );
+
+    /// <summary>
     /// Obtém a questão pendente de um usuário.
     /// </summary>
     /// <param name="userId">Identificador do usuário.</param>
@@ -36,9 +51,10 @@ public interface IQuestionRepository : IBaseRepository<QuestionModel>
     /// Conta as questões pertencentes a um usuário.
     /// </summary>
     /// <param name="userId">Identificador do usuário.</param>
+    /// <param name="search">Termo usado para filtrar as questões.</param>
     /// <param name="cancellationToken">Token para cancelar a operação.</param>
     /// <returns>Quantidade total de questões do usuário.</returns>
-    Task<int> CountByUserAsync(Guid userId, CancellationToken cancellationToken);
+    Task<int> CountByUserAsync(Guid userId, string? search, CancellationToken cancellationToken);
 
     /// <summary>
     /// Obtém uma página de questões pertencentes a um usuário.
@@ -46,12 +62,16 @@ public interface IQuestionRepository : IBaseRepository<QuestionModel>
     /// <param name="userId">Identificador do usuário.</param>
     /// <param name="skip">Quantidade de questões que serão ignoradas.</param>
     /// <param name="take">Quantidade máxima de questões retornadas.</param>
+    /// <param name="search">Termo usado para filtrar as questões.</param>
     /// <param name="cancellationToken">Token para cancelar a operação.</param>
     /// <returns>Lista de questões da página solicitada.</returns>
-    Task<IReadOnlyList<QuestionModel>> GetPageByUserAsync(Guid userId,
-                                                          int skip,
-                                                          int take,
-                                                          CancellationToken cancellationToken);
+    Task<IReadOnlyList<QuestionModel>> GetPageByUserAsync(
+        Guid userId,
+        int skip,
+        int take,
+        string? search,
+        CancellationToken cancellationToken
+    );
 
     /// <summary>
     /// Obtém uma questão pertencente ao usuário informado.
@@ -69,8 +89,5 @@ public interface IQuestionRepository : IBaseRepository<QuestionModel>
     /// <param name="fingerprint">Impressão digital do contexto.</param>
     /// <param name="cancellationToken">Token para cancelar a operação.</param>
     /// <returns>Valor que indica se o contexto já existe.</returns>
-    Task<bool> ExistsContextFingerprintAsync(Guid userId,
-                                             string fingerprint,
-                                             CancellationToken cancellationToken);
-
+    Task<bool> ExistsContextFingerprintAsync(Guid userId, string fingerprint, CancellationToken cancellationToken);
 }

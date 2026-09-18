@@ -59,10 +59,13 @@ class FluentlyApiClient {
     return Question.fromJson(await _request('POST', '/api/v1/questions'));
   }
 
-  Future<QuestionPage> getQuestions({int page = 1}) async {
+  Future<QuestionPage> getQuestions({int page = 1, String? search}) async {
+    final query = search == null || search.trim().isEmpty
+        ? ''
+        : '&Search=${Uri.encodeQueryComponent(search.trim())}';
     final json = await _request(
       'GET',
-      '/api/v1/questions?Page=$page&PageSize=10',
+      '/api/v1/questions?Page=$page&PageSize=10$query',
     );
     return QuestionPage(
       items: ((json['items'] as List?) ?? const [])
@@ -86,16 +89,80 @@ class FluentlyApiClient {
     );
   }
 
-  Future<List<LeaderboardEntry>> getLeaderboard() async {
+  Future<LeaderboardPage> getLeaderboard({int page = 1, String? search}) async {
+    final query = search == null || search.trim().isEmpty
+        ? ''
+        : '&Search=${Uri.encodeQueryComponent(search.trim())}';
     final json = await _request(
       'GET',
-      '/api/v1/leaderboard?Page=1&PageSize=20',
+      '/api/v1/leaderboard?Page=$page&PageSize=10$query',
     );
-    return ((json['items'] as List?) ?? const [])
-        .cast<Map<String, dynamic>>()
-        .map(LeaderboardEntry.fromJson)
-        .toList();
+    return LeaderboardPage(
+      items: ((json['items'] as List?) ?? const [])
+          .cast<Map<String, dynamic>>()
+          .map(LeaderboardEntry.fromJson)
+          .toList(),
+      page: (json['page'] as num?)?.toInt() ?? page,
+      totalPages: (json['totalPages'] as num?)?.toInt() ?? 1,
+    );
   }
+
+  Future<DailyXpGoal> getDailyXpGoal() async =>
+      DailyXpGoal.fromJson(await _request('GET', '/api/v1/daily-xp-goal'));
+  Future<DailyXpGoal> updateDailyXpGoal(int targetXp) async =>
+      DailyXpGoal.fromJson(
+        await _request('PUT', '/api/v1/daily-xp-goal', {'targetXp': targetXp}),
+      );
+  Future<TaskPage> getTasks({int page = 1, String? search}) async {
+    final query = search == null || search.trim().isEmpty
+        ? ''
+        : '&Search=${Uri.encodeQueryComponent(search.trim())}';
+    final json = await _request(
+      'GET',
+      '/api/v1/tasks?Page=$page&PageSize=10$query',
+    );
+
+    return TaskPage(
+      items: ((json['items'] as List?) ?? const [])
+          .cast<Map<String, dynamic>>()
+          .map(TodoTask.fromJson)
+          .toList(),
+      page: (json['page'] as num?)?.toInt() ?? page,
+      totalPages: (json['totalPages'] as num?)?.toInt() ?? 1,
+    );
+  }
+
+  Future<TodoTask> createTask({
+    required String title,
+    required int priority,
+    String? dueDate,
+  }) async => TodoTask.fromJson(
+    await _request('POST', '/api/v1/tasks', {
+      'title': title,
+      'priority': priority,
+      'dueDate': dueDate,
+    }),
+  );
+  Future<TodoTask> updateTask({
+    required String id,
+    required String title,
+    required int priority,
+    String? dueDate,
+  }) async => TodoTask.fromJson(
+    await _request('PUT', '/api/v1/tasks/$id', {
+      'title': title,
+      'priority': priority,
+      'dueDate': dueDate,
+    }),
+  );
+  Future<TodoTask> setTaskCompletion(String id, bool isCompleted) async =>
+      TodoTask.fromJson(
+        await _request('PATCH', '/api/v1/tasks/$id', {
+          'isCompleted': isCompleted,
+        }),
+      );
+  Future<void> deleteTask(String id) async =>
+      await _request('DELETE', '/api/v1/tasks/$id', null, true);
 
   Future<Map<String, dynamic>> _request(
     String method,
@@ -104,6 +171,10 @@ class FluentlyApiClient {
     bool acceptsEmpty = false,
   ]) async {
     if (baseUrl.isEmpty || accessToken.isEmpty) {
+      if (baseUrl.isEmpty) {
+        throw const ApiException('A URL da API não foi configurada.');
+      }
+
       onUnauthorized?.call();
       throw const ApiException('Sua sessão expirou. Faça login novamente.');
     }
@@ -297,6 +368,72 @@ class QuestionPage {
   });
 
   final List<Question> items;
+  final int page;
+  final int totalPages;
+
+  bool get hasMore => page < totalPages;
+}
+
+class LeaderboardPage {
+  const LeaderboardPage({
+    required this.items,
+    required this.page,
+    required this.totalPages,
+  });
+
+  final List<LeaderboardEntry> items;
+  final int page;
+  final int totalPages;
+
+  bool get hasMore => page < totalPages;
+}
+
+class DailyXpGoal {
+  const DailyXpGoal({
+    this.targetXp,
+    required this.earnedXp,
+    required this.isCompleted,
+  });
+  final int? targetXp;
+  final int earnedXp;
+  final bool isCompleted;
+  factory DailyXpGoal.fromJson(Map<String, dynamic> json) => DailyXpGoal(
+    targetXp: (json['targetXp'] as num?)?.toInt(),
+    earnedXp: (json['earnedXp'] as num?)?.toInt() ?? 0,
+    isCompleted: json['isCompleted'] as bool? ?? false,
+  );
+}
+
+class TodoTask {
+  const TodoTask({
+    required this.id,
+    required this.title,
+    this.dueDate,
+    required this.priority,
+    required this.isCompleted,
+  });
+  final String id;
+  final String title;
+  final String? dueDate;
+  final int priority;
+  final bool isCompleted;
+  factory TodoTask.fromJson(Map<String, dynamic> json) => TodoTask(
+    id: json['id'] as String? ?? '',
+    title: json['title'] as String? ?? '',
+    dueDate: json['dueDate'] as String?,
+    priority: (json['priority'] as num?)?.toInt() ?? 2,
+    isCompleted: json['isCompleted'] as bool? ?? false,
+  );
+}
+
+class TaskPage {
+  const TaskPage({
+    required this.items,
+    required this.page,
+    required this.totalPages,
+  });
+
+  final List<TodoTask> items;
   final int page;
   final int totalPages;
 

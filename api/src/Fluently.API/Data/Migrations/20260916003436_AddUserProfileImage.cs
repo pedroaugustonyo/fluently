@@ -14,15 +14,14 @@ namespace Fluently.API.Data.Migrations
                 name: "ProfileImageBase64",
                 table: "Users",
                 type: "text",
-                nullable: true);
+                nullable: true
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "ProfileImageBase64",
-                table: "Users");
+            migrationBuilder.DropColumn(name: "ProfileImageBase64", table: "Users");
         }
     }
 }

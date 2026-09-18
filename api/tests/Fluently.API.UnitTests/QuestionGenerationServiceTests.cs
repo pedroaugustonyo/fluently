@@ -1,11 +1,8 @@
 using Fluently.API.DTOs.Questions;
 using Fluently.API.Models;
-using Fluently.API.Options;
 using Fluently.API.Repositories;
 using Fluently.API.Services;
-
-using Microsoft.Extensions.Options;
-
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace Fluently.API.UnitTests;
@@ -20,13 +17,22 @@ public sealed class QuestionGenerationServiceTests
     public async Task GenerateAsync_ValidOutput_ReturnsQuestionWithTranslationsAndCorrectIndex()
     {
         var user = TestData.CreateUser();
-        languageModelClient.Setup(client => client.GetStructuredResponseAsync<QuestionGenerationOutputDTO>(
-                It.IsAny<string>(), It.IsAny<string>(), 1, cancellationToken))
+        languageModelClient
+            .Setup(client =>
+                client.GetStructuredResponseAsync<QuestionGenerationOutputDTO>(
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    cancellationToken
+                )
+            )
             .ReturnsAsync(CreateOutput());
-        questionRepository.Setup(repository => repository.ExistsContextFingerprintAsync(
-                user.Id, It.IsAny<string>(), cancellationToken))
+        questionRepository
+            .Setup(repository =>
+                repository.ExistsContextFingerprintAsync(user.Id, It.IsAny<string>(), cancellationToken)
+            )
             .ReturnsAsync(false);
-        questionRepository.Setup(repository => repository.CountByUserAsync(user.Id, cancellationToken))
+        questionRepository
+            .Setup(repository => repository.CountByUserAsync(user.Id, null, cancellationToken))
             .ReturnsAsync(0);
 
         var result = await CreateService().GenerateAsync(user, cancellationToken);
@@ -43,18 +49,29 @@ public sealed class QuestionGenerationServiceTests
         var user = TestData.CreateUser();
         string? systemPrompt = null;
         string? prompt = null;
-        languageModelClient.Setup(client => client.GetStructuredResponseAsync<QuestionGenerationOutputDTO>(
-                It.IsAny<string>(), It.IsAny<string>(), 1, cancellationToken))
-            .Callback<string, string, float, CancellationToken>((promptInstructions, userPrompt, _, _) =>
-            {
-                systemPrompt = promptInstructions;
-                prompt = userPrompt;
-            })
+        languageModelClient
+            .Setup(client =>
+                client.GetStructuredResponseAsync<QuestionGenerationOutputDTO>(
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    cancellationToken
+                )
+            )
+            .Callback<string, string, CancellationToken>(
+                (promptInstructions, userPrompt, _) =>
+                {
+                    systemPrompt = promptInstructions;
+                    prompt = userPrompt;
+                }
+            )
             .ReturnsAsync(CreateOutput());
-        questionRepository.Setup(repository => repository.ExistsContextFingerprintAsync(
-                user.Id, It.IsAny<string>(), cancellationToken))
+        questionRepository
+            .Setup(repository =>
+                repository.ExistsContextFingerprintAsync(user.Id, It.IsAny<string>(), cancellationToken)
+            )
             .ReturnsAsync(false);
-        questionRepository.Setup(repository => repository.CountByUserAsync(user.Id, cancellationToken))
+        questionRepository
+            .Setup(repository => repository.CountByUserAsync(user.Id, null, cancellationToken))
             .ReturnsAsync(2);
 
         await CreateService().GenerateAsync(user, cancellationToken);
@@ -63,31 +80,61 @@ public sealed class QuestionGenerationServiceTests
         Assert.Contains("Biography: " + user.Bio, prompt);
         Assert.Contains("Question sequence number: 3", prompt);
         Assert.NotNull(systemPrompt);
-        Assert.Contains("rotate through every interest", systemPrompt);
+        Assert.Matches("rotate\\s+through\\s+every\\s+interest", systemPrompt);
+    }
+
+    [Fact]
+    public async Task GenerateAsync_TranslationContainsPlaceholder_ReplacesItWithCorrectAlternativeTranslation()
+    {
+        var user = TestData.CreateUser();
+        languageModelClient
+            .Setup(client =>
+                client.GetStructuredResponseAsync<QuestionGenerationOutputDTO>(
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    cancellationToken
+                )
+            )
+            .ReturnsAsync(CreateOutput("Eu ___ inglês todos os dias."));
+        questionRepository
+            .Setup(repository =>
+                repository.ExistsContextFingerprintAsync(user.Id, It.IsAny<string>(), cancellationToken)
+            )
+            .ReturnsAsync(false);
+        questionRepository
+            .Setup(repository => repository.CountByUserAsync(user.Id, null, cancellationToken))
+            .ReturnsAsync(0);
+
+        var result = await CreateService().GenerateAsync(user, cancellationToken);
+
+        Assert.Equal("Eu estudo inglês todos os dias.", result.QuestionTranslation);
     }
 
     private QuestionGenerationService CreateService()
     {
-        return new QuestionGenerationService(languageModelClient.Object, questionRepository.Object,
-            Microsoft.Extensions.Options.Options.Create(new OpenAIOptions { GenerationTemperature = 1 }));
+        return new QuestionGenerationService(
+            languageModelClient.Object,
+            questionRepository.Object,
+            NullLogger<QuestionGenerationService>.Instance
+        );
     }
 
-    private static QuestionGenerationOutputDTO CreateOutput()
+    private static QuestionGenerationOutputDTO CreateOutput(string? questionTranslation = null)
     {
         return new QuestionGenerationOutputDTO
         {
             Context = "Pedro está descrevendo sua rotina de estudos.",
             Question = "I ___ English every day.",
-            QuestionTranslation = "Eu estudo inglês todos os dias.",
+            QuestionTranslation = questionTranslation ?? "Eu estudo inglês todos os dias.",
             Alternatives =
             [
                 new QuestionAlternativeOutputDTO { Text = "study", Translation = "estudo" },
                 new QuestionAlternativeOutputDTO { Text = "practice", Translation = "praticar" },
                 new QuestionAlternativeOutputDTO { Text = "speak", Translation = "falar" },
                 new QuestionAlternativeOutputDTO { Text = "read", Translation = "ler" },
-                new QuestionAlternativeOutputDTO { Text = "write", Translation = "escrever" }
+                new QuestionAlternativeOutputDTO { Text = "write", Translation = "escrever" },
             ],
-            CorrectAlternativeIndex = 1
+            CorrectAlternativeIndex = 1,
         };
     }
 }

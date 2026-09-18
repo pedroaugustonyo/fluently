@@ -28,7 +28,7 @@ http://localhost:5229/swagger
 http://localhost:5229/swagger/v1/swagger.json
 ~~~
 
-![Swagger da API](Images/swagger-ui.png)
+![Swagger da API](src/Fluently.API/Images/swagger-ui.png)
 
 Para testar rotas protegidas, clique em **Authorize** e informe Bearer SEU_TOKEN_DE_ACESSO.
 
@@ -54,9 +54,34 @@ Authorization: Bearer <token-de-acesso>
 | GET | /api/v1/questions/{id} | Sim | Consultar questão |
 | POST | /api/v1/questions | Sim | Gerar questão com IA |
 | POST | /api/v1/questions/{id} | Sim | Enviar resposta |
-| GET | /api/v1/leaderboard | Sim | Consultar ranking |
+| GET | /api/v1/leaderboard | Sim | Consultar ranking paginado e filtrar por nome |
+| GET/PUT | /api/v1/daily-xp-goal | Sim | Consultar ou definir a meta diária de XP |
+| GET/POST | /api/v1/tasks | Sim | Listar ou criar tarefas |
+| GET/PUT/PATCH/DELETE | /api/v1/tasks/{id} | Sim | Consultar, atualizar, concluir ou excluir uma tarefa |
 | GET | /health/live | Não | Verificar processo |
 | GET | /health/ready | Não | Verificar dependências |
+
+## Tarefas e meta diária de XP
+
+As tarefas permitem definir uma meta diária de XP e acompanham automaticamente o XP concedido por questões respondidas corretamente no dia. Elas possuem prioridade baixa (`0`), média (`1`) ou alta (`2`) e podem ter `dueDate` opcional no formato `AAAA-MM-DD`. O aplicativo também disponibiliza um cronômetro Pomodoro configurável.
+
+`GET /api/v1/tasks` aceita `Page`, `PageSize` e `Search` e retorna uma coleção paginada. `POST` e `PUT` recebem o título, a prioridade e a data de vencimento opcional:
+
+~~~json
+{
+  "title": "Revisar verbos irregulares",
+  "priority": 2,
+  "dueDate": "2026-09-20"
+}
+~~~
+
+`PATCH /api/v1/tasks/{id}` recebe `{ "isCompleted": true }`. A exclusão retorna `204 No Content`; as demais operações retornam a tarefa. Status possíveis: `200`, `201`, `204`, `400`, `401` e `404`.
+
+`GET /api/v1/daily-xp-goal` retorna `targetXp`, `earnedXp` e `isCompleted`. Para definir a meta, envie `PUT /api/v1/daily-xp-goal`:
+
+~~~json
+{ "targetXp": 100 }
+~~~
 
 ## Erros
 
@@ -86,7 +111,7 @@ Erros de validação também possuem errors:
 }
 ~~~
 
-## Autenticação
+## Cadastro e login
 
 ### Cadastro — POST /api/v1/auth/register
 
@@ -229,7 +254,7 @@ A geração usa proficiência e biografia como contexto. A resposta da IA é val
 
 Status: 200, 401, 404.
 
-### Listar histórico — GET /api/v1/questions?Page=1&PageSize=10
+### Listar histórico — GET /api/v1/questions?Page=1&PageSize=10&Search=travel
 
 ~~~json
 {
@@ -241,7 +266,7 @@ Status: 200, 401, 404.
 }
 ~~~
 
-Status: 200, 400, 401. Cada item contém os dados da questão e, quando respondido, seu resultado.
+Status: 200, 400, 401. `Search` é opcional e pesquisa o enunciado, a tradução e o contexto. Cada item contém os dados da questão e, quando respondido, seu resultado.
 
 ### Consultar por ID — GET /api/v1/questions/{id}
 

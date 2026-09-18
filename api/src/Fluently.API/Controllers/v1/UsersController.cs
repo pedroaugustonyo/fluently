@@ -1,6 +1,5 @@
 using Fluently.API.DTOs.Users;
 using Fluently.API.Services;
-
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,22 +11,8 @@ namespace Fluently.API.Controllers.v1;
 [ApiController]
 [Route("api/v1/users")]
 [Authorize]
-public sealed class UsersController : ControllerBase
+public sealed class UsersController(IUserService userService) : ControllerBase
 {
-    /// <summary>
-    /// Serviço de usuários.
-    /// </summary>
-    private readonly IUserService _userService;
-
-    /// <summary>
-    /// Inicializa uma nova instância do controlador de usuários.
-    /// </summary>
-    /// <param name="userService">Serviço utilizado nas operações do usuário.</param>
-    public UsersController(IUserService userService)
-    {
-        _userService = userService;
-    }
-
     /// <summary>
     /// Obtém os dados do usuário.
     /// </summary>
@@ -41,7 +26,7 @@ public sealed class UsersController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<GetUserResponseDTO>> GetCurrentAsync(CancellationToken cancellationToken)
     {
-        var response = await _userService.GetCurrentAsync(cancellationToken);
+        var response = await userService.GetCurrentAsync(cancellationToken);
         return Ok(response);
     }
 
@@ -59,9 +44,12 @@ public sealed class UsersController : ControllerBase
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<UpdateUserResponseDTO>> UpdateProfileAsync([FromBody] UpdateUserRequestDTO request, CancellationToken cancellationToken)
+    public async Task<ActionResult<UpdateUserResponseDTO>> UpdateProfileAsync(
+        [FromBody] UpdateUserRequestDTO request,
+        CancellationToken cancellationToken
+    )
     {
-        var response = await _userService.UpdateProfileAsync(request, cancellationToken);
+        var response = await userService.UpdateProfileAsync(request, cancellationToken);
         return Ok(response);
     }
 
@@ -81,9 +69,12 @@ public sealed class UsersController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> UpdateCredentialsAsync([FromBody] UpdateUserCredentialsRequestDTO request, CancellationToken cancellationToken)
+    public async Task<IActionResult> UpdateCredentialsAsync(
+        [FromBody] UpdateUserCredentialsRequestDTO request,
+        CancellationToken cancellationToken
+    )
     {
-        await _userService.UpdateCredentialsAsync(request, cancellationToken);
+        await userService.UpdateCredentialsAsync(request, cancellationToken);
         return NoContent();
     }
 }

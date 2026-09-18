@@ -1,5 +1,4 @@
 using DotNetEnv;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
@@ -17,23 +16,17 @@ public sealed class AppDbContextFactory : IDesignTimeDbContextFactory<AppDbConte
     /// <returns>Contexto configurado para acesso ao banco de dados.</returns>
     public AppDbContext CreateDbContext(string[] args)
     {
-        Env.NoClobber()
-            .TraversePath()
-            .Load(Path.Combine(AppContext.BaseDirectory, ".env"));
+        Env.NoClobber().TraversePath().Load(Path.Combine(AppContext.BaseDirectory, ".env"));
 
-        var connectionString = Environment.GetEnvironmentVariable(
-            "ConnectionStrings__DefaultConnection");
+        var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
 
         if (string.IsNullOrWhiteSpace(connectionString))
         {
-            throw new InvalidOperationException(
-                "ConnectionStrings__DefaultConnection must be configured.");
+            throw new InvalidOperationException("ConnectionStrings__DefaultConnection must be configured.");
         }
 
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseNpgsql(connectionString)
-            .Options;
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(connectionString).Options;
 
-        return new AppDbContext(options);
+        return new AppDbContext(options, TimeProvider.System);
     }
 }

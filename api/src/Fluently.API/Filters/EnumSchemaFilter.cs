@@ -1,8 +1,6 @@
 using System.ComponentModel;
 using System.Reflection;
-
 using Microsoft.OpenApi.Models;
-
 using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace Fluently.API.Filters;
@@ -26,13 +24,9 @@ public sealed class EnumSchemaFilter : ISchemaFilter
             return;
         }
 
-        var descriptions = Enum.GetValues(enumType)
-            .Cast<object>()
-            .Select(value => FormatValue(enumType, value));
+        var descriptions = Enum.GetValues(enumType).Cast<object>().Select(value => FormatValue(enumType, value));
         var acceptedValues = string.Join("<br />", descriptions);
-        var prefix = string.IsNullOrWhiteSpace(schema.Description)
-            ? string.Empty
-            : $"{schema.Description}<br /><br />";
+        var prefix = string.IsNullOrWhiteSpace(schema.Description) ? string.Empty : $"{schema.Description}<br /><br />";
 
         schema.Description = $"{prefix}Valores aceitos:<br />{acceptedValues}";
     }

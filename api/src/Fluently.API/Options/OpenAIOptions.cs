@@ -35,10 +35,4 @@ public sealed class OpenAIOptions
     /// </summary>
     [Range(100, 4096)]
     public int MaxOutputTokens { get; set; }
-
-    /// <summary>
-    /// Temperatura da geração de questões.
-    /// </summary>
-    [Range(0, 2)]
-    public float GenerationTemperature { get; set; }
 }

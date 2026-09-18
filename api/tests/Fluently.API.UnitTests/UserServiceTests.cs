@@ -4,10 +4,8 @@ using Fluently.API.Exceptions;
 using Fluently.API.Models;
 using Fluently.API.Repositories;
 using Fluently.API.Services;
-
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging.Abstractions;
-
 using Moq;
 
 namespace Fluently.API.UnitTests;
@@ -48,8 +46,7 @@ public sealed class UserServiceTests
             .ReturnsAsync((UserModel?)null);
         var service = CreateService();
 
-        var exception = await Assert.ThrowsAsync<NotFoundException>(
-            () => service.GetCurrentAsync(cancellationToken));
+        var exception = await Assert.ThrowsAsync<NotFoundException>(() => service.GetCurrentAsync(cancellationToken));
 
         Assert.Equal("O usuário autenticado não foi encontrado.", exception.Detail);
     }
@@ -64,12 +61,10 @@ public sealed class UserServiceTests
             FirstName = " Ana ",
             LastName = " Silva ",
             Proficiency = ProficiencyLevelEnum.B2,
-            Bio = "  Quero viajar sozinho.  "
+            Bio = "  Quero viajar sozinho.  ",
         };
         SetupCurrentUser(user);
-        userRepository
-            .Setup(repository => repository.SaveChangesAsync(cancellationToken))
-            .ReturnsAsync(1);
+        userRepository.Setup(repository => repository.SaveChangesAsync(cancellationToken)).ReturnsAsync(1);
         var service = CreateService();
 
         var response = await service.UpdateProfileAsync(request, cancellationToken);
@@ -84,9 +79,7 @@ public sealed class UserServiceTests
         Assert.Equal(user.Bio, response.Bio);
         userRepository.Verify(repository => repository.Update(user), Times.Once);
         userRepository.Verify(repository => repository.SaveChangesAsync(cancellationToken), Times.Once);
-        questionRepository.Verify(
-            repository => repository.DeleteCurrentAsync(user.Id, cancellationToken),
-            Times.Once);
+        questionRepository.Verify(repository => repository.DeleteCurrentAsync(user.Id, cancellationToken), Times.Once);
     }
 
     [Fact]
@@ -97,24 +90,21 @@ public sealed class UserServiceTests
         {
             Email = "used@example.com",
             Password = "Updated123!",
-            PasswordConfirmation = "Updated123!"
+            PasswordConfirmation = "Updated123!",
         };
         SetupCurrentUser(user);
         userRepository
-            .Setup(repository => repository.ExistsByNormalizedEmailAsync(
-                "USED@EXAMPLE.COM",
-                cancellationToken))
+            .Setup(repository => repository.ExistsByNormalizedEmailAsync("USED@EXAMPLE.COM", cancellationToken))
             .ReturnsAsync(true);
         var service = CreateService();
 
-        var exception = await Assert.ThrowsAsync<ConflictException>(
-            () => service.UpdateCredentialsAsync(request, cancellationToken));
+        var exception = await Assert.ThrowsAsync<ConflictException>(() =>
+            service.UpdateCredentialsAsync(request, cancellationToken)
+        );
 
         Assert.Equal("Já existe uma conta cadastrada com este e-mail.", exception.Detail);
         passwordHasher.VerifyNoOtherCalls();
-        userRepository.Verify(
-            repository => repository.SaveChangesAsync(It.IsAny<CancellationToken>()),
-            Times.Never);
+        userRepository.Verify(repository => repository.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -125,20 +115,14 @@ public sealed class UserServiceTests
         {
             Email = "  updated@example.com ",
             Password = "Updated123!",
-            PasswordConfirmation = "Updated123!"
+            PasswordConfirmation = "Updated123!",
         };
         SetupCurrentUser(user);
         userRepository
-            .Setup(repository => repository.ExistsByNormalizedEmailAsync(
-                "UPDATED@EXAMPLE.COM",
-                cancellationToken))
+            .Setup(repository => repository.ExistsByNormalizedEmailAsync("UPDATED@EXAMPLE.COM", cancellationToken))
             .ReturnsAsync(false);
-        passwordHasher
-            .Setup(hasher => hasher.HashPassword(user, request.Password))
-            .Returns("updated-hash");
-        userRepository
-            .Setup(repository => repository.SaveChangesAsync(cancellationToken))
-            .ReturnsAsync(1);
+        passwordHasher.Setup(hasher => hasher.HashPassword(user, request.Password)).Returns("updated-hash");
+        userRepository.Setup(repository => repository.SaveChangesAsync(cancellationToken)).ReturnsAsync(1);
         var service = CreateService();
 
         await service.UpdateCredentialsAsync(request, cancellationToken);
@@ -157,14 +141,14 @@ public sealed class UserServiceTests
             userRepository.Object,
             questionRepository.Object,
             passwordHasher.Object,
-            NullLogger<UserService>.Instance);
+            NullLogger<UserService>.Instance,
+            new FixedTimeProvider(TestData.Now)
+        );
     }
 
     private void SetupCurrentUser(UserModel user)
     {
         currentUserService.Setup(service => service.GetUserId()).Returns(user.Id);
-        userRepository
-            .Setup(repository => repository.GetByIdAsync(user.Id, cancellationToken))
-            .ReturnsAsync(user);
+        userRepository.Setup(repository => repository.GetByIdAsync(user.Id, cancellationToken)).ReturnsAsync(user);
     }
 }

@@ -31,20 +31,25 @@ public interface IUserRepository : IBaseRepository<UserModel>
     Task<int> CountAsync(CancellationToken cancellationToken);
 
     /// <summary>
-    /// Conta os usuários que possuem experiência no ranking.
+    /// Conta os usuários disponíveis no ranking.
     /// </summary>
+    /// <param name="search">Termo usado para filtrar o nome do usuário.</param>
     /// <param name="cancellationToken">Token para cancelar a operação.</param>
-    /// <returns>Quantidade de usuários com experiência.</returns>
-    Task<int> CountLeaderboardAsync(CancellationToken cancellationToken);
+    /// <returns>Quantidade de usuários.</returns>
+    Task<int> CountLeaderboardAsync(string? search, CancellationToken cancellationToken);
 
     /// <summary>
     /// Obtém uma página ordenada por experiência e pela data de criação em caso de empate.
     /// </summary>
     /// <param name="skip">Quantidade de usuários que serão ignorados.</param>
     /// <param name="take">Quantidade máxima de usuários retornados.</param>
+    /// <param name="search">Termo usado para filtrar o nome do usuário.</param>
     /// <param name="cancellationToken">Token para cancelar a operação.</param>
     /// <returns>Lista de usuários da página solicitada.</returns>
-    Task<IReadOnlyList<UserModel>> GetLeaderboardPageAsync(int skip,
-                                                           int take,
-                                                           CancellationToken cancellationToken);
+    Task<IReadOnlyList<UserModel>> GetLeaderboardPageAsync(
+        int skip,
+        int take,
+        string? search,
+        CancellationToken cancellationToken
+    );
 }

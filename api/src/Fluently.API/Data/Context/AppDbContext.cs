@@ -1,5 +1,4 @@
 using Fluently.API.Models;
-
 using Microsoft.EntityFrameworkCore;
 
 namespace Fluently.API.Data.Context;
@@ -7,16 +6,8 @@ namespace Fluently.API.Data.Context;
 /// <summary>
 /// Sessão de acesso ao banco de dados da aplicação.
 /// </summary>
-public sealed class AppDbContext : DbContext
+public sealed class AppDbContext(DbContextOptions<AppDbContext> options, TimeProvider timeProvider) : DbContext(options)
 {
-    /// <summary>
-    /// Inicializa uma nova instância do contexto da aplicação.
-    /// </summary>
-    /// <param name="options">Opções utilizadas para configurar o contexto.</param>
-    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
-    {
-    }
-
     /// <summary>
     /// Conjunto de usuários.
     /// </summary>
@@ -26,6 +17,11 @@ public sealed class AppDbContext : DbContext
     /// Conjunto de questões.
     /// </summary>
     public DbSet<QuestionModel> Questions => Set<QuestionModel>();
+
+    /// <summary>
+    /// Conjunto de tarefas.
+    /// </summary>
+    public DbSet<TaskModel> Tasks => Set<TaskModel>();
 
     /// <summary>
     /// Persiste as alterações e atualiza os dados comuns das entidades.
@@ -53,13 +49,21 @@ public sealed class AppDbContext : DbContext
     /// </summary>
     private void SetUpdatedAt()
     {
-        var now = DateTimeOffset.UtcNow;
-        var modifiedEntries = ChangeTracker.Entries<BaseModel>()
-            .Where(entry => entry.State == EntityState.Modified);
+        var now = timeProvider.GetUtcNow();
+        var changedEntries = ChangeTracker
+            .Entries<BaseModel>()
+            .Where(entry => entry.State is EntityState.Added or EntityState.Modified);
 
-        foreach (var entry in modifiedEntries)
+        foreach (var entry in changedEntries)
         {
-            entry.Entity.UpdatedAt = now;
+            if (entry.State == EntityState.Added)
+            {
+                entry.Entity.CreatedAt = entry.Entity.CreatedAt.ToUniversalTime();
+            }
+            else
+            {
+                entry.Entity.UpdatedAt = now;
+            }
         }
     }
 }

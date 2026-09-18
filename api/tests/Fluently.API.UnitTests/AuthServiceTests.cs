@@ -1,14 +1,12 @@
 using Fluently.API.DTOs.Auth;
-using Fluently.API.Exceptions;
 using Fluently.API.DTOs.Users;
+using Fluently.API.Exceptions;
 using Fluently.API.Models;
 using Fluently.API.Repositories;
 using Fluently.API.Services;
-
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
-
 using Moq;
 
 namespace Fluently.API.UnitTests;
@@ -29,9 +27,7 @@ public sealed class AuthServiceTests
             .Setup(repository => repository.AddAsync(It.IsAny<UserModel>(), cancellationToken))
             .Callback<UserModel, CancellationToken>((user, _) => addedUser = user)
             .Returns(Task.CompletedTask);
-        userRepository
-            .Setup(repository => repository.SaveChangesAsync(cancellationToken))
-            .ReturnsAsync(1);
+        userRepository.Setup(repository => repository.SaveChangesAsync(cancellationToken)).ReturnsAsync(1);
         passwordHasher
             .Setup(hasher => hasher.HashPassword(It.IsAny<UserModel>(), request.Password))
             .Returns("secure-hash");
@@ -59,16 +55,13 @@ public sealed class AuthServiceTests
         var request = CreateRegisterRequest(email: "  Pedro@Example.com ");
         UserModel? addedUser = null;
         userRepository
-            .Setup(repository => repository.ExistsByNormalizedEmailAsync("PEDRO@EXAMPLE.COM",
-                                                                          cancellationToken))
+            .Setup(repository => repository.ExistsByNormalizedEmailAsync("PEDRO@EXAMPLE.COM", cancellationToken))
             .ReturnsAsync(false);
         userRepository
             .Setup(repository => repository.AddAsync(It.IsAny<UserModel>(), cancellationToken))
             .Callback<UserModel, CancellationToken>((user, _) => addedUser = user)
             .Returns(Task.CompletedTask);
-        userRepository
-            .Setup(repository => repository.SaveChangesAsync(cancellationToken))
-            .ReturnsAsync(1);
+        userRepository.Setup(repository => repository.SaveChangesAsync(cancellationToken)).ReturnsAsync(1);
         passwordHasher
             .Setup(hasher => hasher.HashPassword(It.IsAny<UserModel>(), request.Password))
             .Returns("secure-hash");
@@ -87,18 +80,19 @@ public sealed class AuthServiceTests
     {
         var request = CreateRegisterRequest();
         userRepository
-            .Setup(repository => repository.ExistsByNormalizedEmailAsync("PEDRO@EXAMPLE.COM",
-                                                                          cancellationToken))
+            .Setup(repository => repository.ExistsByNormalizedEmailAsync("PEDRO@EXAMPLE.COM", cancellationToken))
             .ReturnsAsync(true);
         var service = CreateService();
 
-        var exception = await Assert.ThrowsAsync<ConflictException>(
-            () => service.RegisterAsync(request, cancellationToken));
+        var exception = await Assert.ThrowsAsync<ConflictException>(() =>
+            service.RegisterAsync(request, cancellationToken)
+        );
 
         Assert.Equal("Já existe uma conta cadastrada com este e-mail.", exception.Detail);
         userRepository.Verify(
             repository => repository.AddAsync(It.IsAny<UserModel>(), It.IsAny<CancellationToken>()),
-            Times.Never);
+            Times.Never
+        );
     }
 
     [Fact]
@@ -116,8 +110,7 @@ public sealed class AuthServiceTests
             .Returns("secure-hash");
         var service = CreateService();
 
-        await Assert.ThrowsAsync<DbUpdateException>(
-            () => service.RegisterAsync(request, cancellationToken));
+        await Assert.ThrowsAsync<DbUpdateException>(() => service.RegisterAsync(request, cancellationToken));
     }
 
     [Fact]
@@ -133,16 +126,13 @@ public sealed class AuthServiceTests
             .Returns(PasswordVerificationResult.Success);
         tokenService
             .Setup(service => service.Create(user.Id, user.Email))
-            .Returns(new AccessTokenResultDTO
-            {
-                AccessToken = "access-token",
-                ExpiresAt = expiresAt
-            });
+            .Returns(new AccessTokenResultDTO { AccessToken = "access-token", ExpiresAt = expiresAt });
         var service = CreateService();
 
         var response = await service.LoginAsync(
             new LoginUserRequestDTO { Email = user.Email, Password = "Valid123!" },
-            cancellationToken);
+            cancellationToken
+        );
 
         Assert.Equal("access-token", response.AccessToken);
         Assert.Equal("Bearer", response.TokenType);
@@ -156,19 +146,16 @@ public sealed class AuthServiceTests
     public async Task LoginAsync_UnknownEmail_ThrowsUnauthorizedException()
     {
         userRepository
-            .Setup(repository => repository.GetByNormalizedEmailAsync("UNKNOWN@EXAMPLE.COM",
-                                                                       cancellationToken))
+            .Setup(repository => repository.GetByNormalizedEmailAsync("UNKNOWN@EXAMPLE.COM", cancellationToken))
             .ReturnsAsync((UserModel?)null);
         var service = CreateService();
 
         var exception = await Assert.ThrowsAsync<UnauthorizedException>(() =>
             service.LoginAsync(
-                new LoginUserRequestDTO
-                {
-                    Email = "unknown@example.com",
-                    Password = "Valid123!"
-                },
-                cancellationToken));
+                new LoginUserRequestDTO { Email = "unknown@example.com", Password = "Valid123!" },
+                cancellationToken
+            )
+        );
 
         Assert.Equal("E-mail ou senha inválidos.", exception.Detail);
         passwordHasher.VerifyNoOtherCalls();
@@ -190,7 +177,9 @@ public sealed class AuthServiceTests
         var exception = await Assert.ThrowsAsync<UnauthorizedException>(() =>
             service.LoginAsync(
                 new LoginUserRequestDTO { Email = user.Email, Password = "Wrong123!" },
-                cancellationToken));
+                cancellationToken
+            )
+        );
 
         Assert.Equal("E-mail ou senha inválidos.", exception.Detail);
         tokenService.VerifyNoOtherCalls();
@@ -202,7 +191,8 @@ public sealed class AuthServiceTests
             userRepository.Object,
             passwordHasher.Object,
             tokenService.Object,
-            NullLogger<AuthService>.Instance);
+            NullLogger<AuthService>.Instance
+        );
     }
 
     private static CreateUserRequestDTO CreateRegisterRequest(string email = "pedro@example.com")
@@ -213,7 +203,7 @@ public sealed class AuthServiceTests
             LastName = "Oliveira",
             Email = email,
             Password = "Valid123!",
-            PasswordConfirmation = "Valid123!"
+            PasswordConfirmation = "Valid123!",
         };
     }
 }

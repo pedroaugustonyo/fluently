@@ -25,9 +25,11 @@ public static class PaginationHelper
     /// <param name="totalItems">Quantidade total de itens disponíveis.</param>
     /// <typeparam name="T">Tipo dos itens retornados.</typeparam>
     /// <returns>Resposta paginada pronta para retorno pela API.</returns>
-    public static PaginatedResponseDTO<T> CreateResponse<T>(IReadOnlyList<T> items,
-                                                             PaginationRequestDTO request,
-                                                             int totalItems)
+    public static PaginatedResponseDTO<T> CreateResponse<T>(
+        IReadOnlyList<T> items,
+        PaginationRequestDTO request,
+        int totalItems
+    )
     {
         var totalPages = Math.Max(1, (int)Math.Ceiling(totalItems / (double)request.PageSize));
 
@@ -37,7 +39,7 @@ public static class PaginationHelper
             Page = request.Page,
             PageSize = request.PageSize,
             TotalItems = totalItems,
-            TotalPages = totalPages
+            TotalPages = totalPages,
         };
     }
 }

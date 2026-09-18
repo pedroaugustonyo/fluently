@@ -1,6 +1,5 @@
 using Fluently.API.Enums;
 using Fluently.API.Models;
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -28,14 +27,15 @@ public sealed class UserModelConfiguration : IEntityTypeConfiguration<UserModel>
         builder.Property(user => user.PasswordHash).HasMaxLength(1024).IsRequired();
         builder.Property(user => user.TotalXp).HasDefaultValue(0L).IsRequired();
         builder.Property(user => user.CurrentStreak).HasDefaultValue(0).IsRequired();
-        builder.Property(user => user.Proficiency)
+        builder
+            .Property(user => user.Proficiency)
             .HasColumnType("integer")
             .HasComment("1 = A1; 2 = A2; 3 = B1; 4 = B2; 5 = C1; 6 = C2");
-        builder.Property(user => user.Bio)
+        builder
+            .Property(user => user.Bio)
             .HasMaxLength(2000)
             .HasComment("Biografia utilizada como contexto para gerar questões personalizadas.");
-        builder.Property(user => user.ProfileImageBase64)
-            .HasColumnType("text");
+        builder.Property(user => user.ProfileImageBase64).HasColumnType("text");
 
         builder.ToTable(table =>
         {

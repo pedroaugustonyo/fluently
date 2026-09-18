@@ -35,7 +35,7 @@ internal static class TestData
             Proficiency = ProficiencyLevelEnum.B1,
             Bio = "Quero participar de reuniões internacionais.",
             CreatedAt = Now,
-            UpdatedAt = Now
+            UpdatedAt = Now,
         };
     }
 
@@ -57,7 +57,22 @@ internal static class TestData
             CorrectAlternativeIndex = 1,
             BaseXp = 15,
             CreatedAt = Now,
-            UpdatedAt = Now
+            UpdatedAt = Now,
+        };
+    }
+
+    internal static TaskModel CreateTask(UserModel? user = null)
+    {
+        user ??= CreateUser();
+
+        return new TaskModel
+        {
+            Id = Guid.Parse("c2f9f72c-c47e-48af-a8f9-a2664f236d9f"),
+            UserId = user.Id,
+            User = user,
+            Title = "Revisar vocabulário",
+            Priority = TaskPriorityEnum.High,
+            CreatedAt = Now,
         };
     }
 }

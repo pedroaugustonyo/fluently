@@ -1,8 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
-
 using Fluently.API.Exceptions;
-
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
@@ -13,22 +11,8 @@ namespace Fluently.API.Middleware;
 /// <summary>
 /// Tratamento padronizado das exceções da aplicação.
 /// </summary>
-public sealed class ApiExceptionHandlerMiddleware : IExceptionHandler
+public sealed class ApiExceptionHandlerMiddleware(ILogger<ApiExceptionHandlerMiddleware> logger) : IExceptionHandler
 {
-    /// <summary>
-    /// Registrador do tratamento de erros.
-    /// </summary>
-    private readonly ILogger<ApiExceptionHandlerMiddleware> _logger;
-
-    /// <summary>
-    /// Inicializa uma nova instância do tratador de exceções da API.
-    /// </summary>
-    /// <param name="logger">Registrador dos eventos internos do tratamento de erros.</param>
-    public ApiExceptionHandlerMiddleware(ILogger<ApiExceptionHandlerMiddleware> logger)
-    {
-        _logger = logger;
-    }
-
     /// <summary>
     /// Trata uma exceção e escreve os detalhes padronizados na resposta HTTP.
     /// </summary>
@@ -36,9 +20,11 @@ public sealed class ApiExceptionHandlerMiddleware : IExceptionHandler
     /// <param name="exception">Exceção que será tratada.</param>
     /// <param name="cancellationToken">Token para cancelar a operação.</param>
     /// <returns>Valor que indica se a exceção foi tratada.</returns>
-    public async ValueTask<bool> TryHandleAsync(HttpContext httpContext,
-                                                Exception exception,
-                                                CancellationToken cancellationToken)
+    public async ValueTask<bool> TryHandleAsync(
+        HttpContext httpContext,
+        Exception exception,
+        CancellationToken cancellationToken
+    )
     {
         var (statusCode, detail) = MapException(exception);
         var title = ReasonPhrases.GetReasonPhrase(statusCode);
@@ -50,24 +36,26 @@ public sealed class ApiExceptionHandlerMiddleware : IExceptionHandler
 
         if (statusCode >= StatusCodes.Status500InternalServerError)
         {
-            _logger.LogError(
+            logger.LogError(
                 exception,
                 "Unhandled API exception. {ExceptionType} {StatusCode} {RequestMethod} {RequestPath} {TraceId}",
                 exception.GetType().FullName,
                 statusCode,
                 httpContext.Request.Method,
                 httpContext.Request.Path,
-                traceId);
+                traceId
+            );
         }
         else
         {
-            _logger.LogWarning(
+            logger.LogWarning(
                 "API request rejected. {ExceptionType} {StatusCode} {RequestMethod} {RequestPath} {TraceId}",
                 exception.GetType().FullName,
                 statusCode,
                 httpContext.Request.Method,
                 httpContext.Request.Path,
-                traceId);
+                traceId
+            );
         }
 
         httpContext.Response.StatusCode = statusCode;
@@ -78,7 +66,7 @@ public sealed class ApiExceptionHandlerMiddleware : IExceptionHandler
             Status = statusCode,
             Title = title,
             Detail = detail,
-            Instance = httpContext.Request.Path
+            Instance = httpContext.Request.Path,
         };
         problemDetails.Extensions["traceId"] = traceId;
 
@@ -86,7 +74,8 @@ public sealed class ApiExceptionHandlerMiddleware : IExceptionHandler
             problemDetails,
             options: null,
             contentType: "application/problem+json",
-            cancellationToken: cancellationToken);
+            cancellationToken: cancellationToken
+        );
 
         return true;
     }
@@ -100,17 +89,19 @@ public sealed class ApiExceptionHandlerMiddleware : IExceptionHandler
     {
         return exception switch
         {
-            ApiException apiException =>
-                (apiException.StatusCode, apiException.Detail),
-            DbUpdateException =>
-                (StatusCodes.Status409Conflict,
-                 "Não foi possível salvar os dados porque eles entram em conflito com o estado atual."),
-            HttpRequestException or JsonException or TimeoutException or OperationCanceledException =>
-                (StatusCodes.Status503ServiceUnavailable,
-                 "Não foi possível acessar o serviço de inteligência artificial agora."),
-            _ =>
-                (StatusCodes.Status500InternalServerError,
-                 "Ocorreu um erro inesperado. Entre em contato com o suporte e informe o traceId.")
+            ApiException apiException => (apiException.StatusCode, apiException.Detail),
+            DbUpdateException => (
+                StatusCodes.Status409Conflict,
+                "Não foi possível salvar os dados porque eles entram em conflito com o estado atual."
+            ),
+            HttpRequestException or JsonException or TimeoutException or OperationCanceledException => (
+                StatusCodes.Status503ServiceUnavailable,
+                "Não foi possível acessar o serviço de inteligência artificial agora."
+            ),
+            _ => (
+                StatusCodes.Status500InternalServerError,
+                "Ocorreu um erro inesperado. Entre em contato com o suporte e informe o traceId."
+            ),
         };
     }
 }

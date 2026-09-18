@@ -61,4 +61,14 @@ public sealed class UserModel : BaseModel
     /// Questões geradas para o usuário.
     /// </summary>
     public ICollection<QuestionModel> Questions { get; } = [];
+
+    /// <summary>
+    /// Meta diária de experiência definida pelo usuário.
+    /// </summary>
+    public int? DailyXpGoal { get; set; }
+
+    /// <summary>
+    /// Tarefas criadas pelo usuário.
+    /// </summary>
+    public ICollection<TaskModel> Tasks { get; } = [];
 }

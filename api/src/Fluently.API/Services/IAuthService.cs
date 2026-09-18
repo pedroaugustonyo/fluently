@@ -13,8 +13,7 @@ public interface IAuthService
     /// <param name="request">Dados necessários para o cadastro.</param>
     /// <param name="cancellationToken">Token para cancelar a operação.</param>
     /// <returns>Dados públicos do usuário cadastrado.</returns>
-    Task<CreateUserResponseDTO> RegisterAsync(CreateUserRequestDTO request,
-                                               CancellationToken cancellationToken);
+    Task<CreateUserResponseDTO> RegisterAsync(CreateUserRequestDTO request, CancellationToken cancellationToken);
 
     /// <summary>
     /// Autentica um usuário com e-mail e senha.
@@ -22,6 +21,5 @@ public interface IAuthService
     /// <param name="request">Credenciais utilizadas na autenticação.</param>
     /// <param name="cancellationToken">Token para cancelar a operação.</param>
     /// <returns>Token de acesso e dados do usuário autenticado.</returns>
-    Task<LoginUserResponseDTO> LoginAsync(LoginUserRequestDTO request,
-                                          CancellationToken cancellationToken);
+    Task<LoginUserResponseDTO> LoginAsync(LoginUserRequestDTO request, CancellationToken cancellationToken);
 }

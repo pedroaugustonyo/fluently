@@ -1,7 +1,6 @@
 using Fluently.API.DTOs.Common;
 using Fluently.API.DTOs.Questions;
 using Fluently.API.Services;
-
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,22 +12,8 @@ namespace Fluently.API.Controllers.v1;
 [ApiController]
 [Route("api/v1/questions")]
 [Authorize]
-public sealed class QuestionsController : ControllerBase
+public sealed class QuestionsController(IQuestionService questionService) : ControllerBase
 {
-    /// <summary>
-    /// Serviço de questões.
-    /// </summary>
-    private readonly IQuestionService _questionService;
-
-    /// <summary>
-    /// Inicializa uma nova instância do controlador de questões.
-    /// </summary>
-    /// <param name="questionService">Serviço utilizado no fluxo de exercícios.</param>
-    public QuestionsController(IQuestionService questionService)
-    {
-        _questionService = questionService;
-    }
-
     /// <summary>
     /// Obtém a questão atual.
     /// </summary>
@@ -42,7 +27,7 @@ public sealed class QuestionsController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<QuestionResponseDTO>> GetCurrentAsync(CancellationToken cancellationToken)
     {
-        var response = await _questionService.GetCurrentAsync(cancellationToken);
+        var response = await questionService.GetCurrentAsync(cancellationToken);
         return Ok(response);
     }
 
@@ -58,10 +43,12 @@ public sealed class QuestionsController : ControllerBase
     [ProducesResponseType<PaginatedResponseDTO<QuestionDetailsResponseDTO>>(StatusCodes.Status200OK)]
     [ProducesResponseType<ValidationProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
-    public async Task<ActionResult<PaginatedResponseDTO<QuestionDetailsResponseDTO>>> GetAllAsync([FromQuery] PaginationRequestDTO request,
-                                                                                                  CancellationToken cancellationToken)
+    public async Task<ActionResult<PaginatedResponseDTO<QuestionDetailsResponseDTO>>> PaginateAsync(
+        [FromQuery] PaginationRequestDTO request,
+        CancellationToken cancellationToken
+    )
     {
-        var response = await _questionService.GetAllAsync(request, cancellationToken);
+        var response = await questionService.PaginateAsync(request, cancellationToken);
         return Ok(response);
     }
 
@@ -77,9 +64,12 @@ public sealed class QuestionsController : ControllerBase
     [ProducesResponseType<QuestionDetailsResponseDTO>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<QuestionDetailsResponseDTO>> GetByIdAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<ActionResult<QuestionDetailsResponseDTO>> GetByIdAsync(
+        Guid id,
+        CancellationToken cancellationToken
+    )
     {
-        var response = await _questionService.GetByIdAsync(id, cancellationToken);
+        var response = await questionService.GetByIdAsync(id, cancellationToken);
         return Ok(response);
     }
 
@@ -100,7 +90,7 @@ public sealed class QuestionsController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status503ServiceUnavailable)]
     public async Task<ActionResult<QuestionResponseDTO>> CreateAsync(CancellationToken cancellationToken)
     {
-        var response = await _questionService.CreateAsync(cancellationToken);
+        var response = await questionService.CreateAsync(cancellationToken);
         return Created($"/api/v1/questions/{response.Id}", response);
     }
 
@@ -121,11 +111,13 @@ public sealed class QuestionsController : ControllerBase
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-    public async Task<ActionResult<QuestionAnswerResponseDTO>> SubmitAnswerAsync(Guid id,
-                                                                                 [FromBody] SubmitQuestionAnswerRequestDTO request,
-                                                                                 CancellationToken cancellationToken)
+    public async Task<ActionResult<QuestionAnswerResponseDTO>> SubmitAnswerAsync(
+        Guid id,
+        [FromBody] SubmitQuestionAnswerRequestDTO request,
+        CancellationToken cancellationToken
+    )
     {
-        var response = await _questionService.SubmitAnswerAsync(id, request, cancellationToken);
+        var response = await questionService.SubmitAnswerAsync(id, request, cancellationToken);
         return Created($"/api/v1/questions/{id}", response);
     }
 }
