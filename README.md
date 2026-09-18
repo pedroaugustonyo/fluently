@@ -1,7 +1,7 @@
 # Fluently
 
 <p align="center"><img src="mobile/assets/images/fluently_readme_logo.png" alt="Fluently" width="360"></p>
-<p align="center">Aplicativo de aprendizagem de inglês com exercícios gerados em tempo real por IA.</p>
+<p align="center">Aplicativo de aprendizagem de inglês com exercícios gerados em tempo real por IA, tarefas, meta diária de XP e cronômetro Pomodoro.</p>
 
 <p align="center">
 <img src="https://img.shields.io/badge/.NET%2010-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt=".NET 10">

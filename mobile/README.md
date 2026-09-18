@@ -2,7 +2,7 @@
 
 [Voltar](../README.md)
 
-Aplicativo Flutter usado para login, onboarding, exercícios, progresso, histórico, ranking e edição do perfil.
+Aplicativo Flutter usado para login, onboarding, exercícios, progresso, histórico, ranking, tarefas, meta diária de XP, cronômetro Pomodoro e edição do perfil.
 
 <p align="center">
 <img src="https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white" alt="Flutter">
