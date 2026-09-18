@@ -39,7 +39,7 @@ A aba principal mostra o contexto em português, a frase em inglês e cinco alte
 A API permite uma questão pendente por usuário. Depois de responder, o estudante pode solicitar a próxima.
 
 <p align="center">
-<img src="assets/images/question-screen.png" alt="Tela de questões" width="240">
+<img src="assets/images/screenshots/questions.png" alt="Tela de questões" width="240">
 </p>
 
 ### Histórico
@@ -47,7 +47,7 @@ A API permite uma questão pendente por usuário. Depois de responder, o estudan
 O histórico usa paginação e permite abrir uma questão anterior para consultar a resposta e o resultado.
 
 <p align="center">
-<img src="assets/images/question-history.png" alt="Histórico de questões" width="240">
+<img src="assets/images/screenshots/question-history.png" alt="Histórico de questões" width="240">
 </p>
 
 ### Ranking
@@ -55,7 +55,25 @@ O histórico usa paginação e permite abrir uma questão anterior para consulta
 A aba de ranking mostra a classificação geral por XP, com posição, nome, imagem e pontuação.
 
 <p align="center">
-<img src="assets/images/leaderboard-screen.png" alt="Tela de ranking" width="240">
+<img src="assets/images/screenshots/ranking.png" alt="Tela de ranking" width="240">
+</p>
+
+### Tarefas
+
+A aba Tarefas reúne a meta diária de XP e listas de tarefas. O usuário define sua meta diária; o progresso é atualizado automaticamente pelas questões respondidas corretamente. Cada tarefa pode ter prioridade, data de vencimento e conclusão.
+
+<p align="center">
+<img src="assets/images/screenshots/tasks.png" alt="Tela de tarefas" width="240">
+<img src="assets/images/screenshots/new-task.png" alt="Criação de tarefa" width="240">
+</p>
+
+### Pomodoro
+
+O cronômetro Pomodoro tem foco, pausa curta e pausa longa configuráveis. Ele continua em execução ao navegar pelas outras abas e mostra uma notificação temporária quando a sessão termina.
+
+<p align="center">
+<img src="assets/images/screenshots/pomodoro.png" alt="Tela do Pomodoro" width="240">
+<img src="assets/images/screenshots/pomodoro-settings.png" alt="Configurações do Pomodoro" width="240">
 </p>
 
 ### Perfil
@@ -63,7 +81,7 @@ A aba de ranking mostra a classificação geral por XP, com posição, nome, ima
 A aba de perfil mostra nome, e-mail, XP, sequência, proficiência e biografia. Também permite editar os dados e escolher uma imagem pela câmera ou galeria.
 
 <p align="center">
-<img src="assets/images/profile-screen.png" alt="Tela de perfil" width="240">
+<img src="assets/images/screenshots/profile.png" alt="Tela de perfil" width="240">
 </p>
 
 ## Fluxo de navegação
@@ -74,6 +92,8 @@ Início
   +-- token encontrado --> Tela principal
   |                         +-- Questões
   |                         +-- Ranking
+  |                         +-- Tarefas
+  |                         +-- Pomodoro
   |                         +-- Perfil
   |
   +-- sem token ----------> Login -> Cadastro -> Onboarding -> Tela principal
@@ -85,8 +105,11 @@ Início
 | --- | --- |
 | lib/main.dart | Inicialização, tema, login e cadastro |
 | lib/home_page.dart | Abas, onboarding, questões, histórico, ranking e perfil |
+| lib/tasks_page.dart | Tarefas, meta diária de XP e Pomodoro |
 | lib/auth_api_client.dart | Login, cadastro e modelos |
 | lib/fluently_api_client.dart | Chamadas autenticadas e modelos |
+| lib/confetti_animation.dart | Animação de celebração para respostas e metas concluídas |
+| lib/pomodoro_preferences_store.dart | Persistência local das preferências do Pomodoro |
 | lib/session_store.dart | Armazenamento seguro do token |
 | assets/images/ | Mascote, ícone, logotipo e screenshots da documentação |
 
@@ -138,9 +161,11 @@ A chave da OpenAI nunca fica no aplicativo.
 | Questão atual | GET /api/v1/questions/current |
 | Gerar questão | POST /api/v1/questions |
 | Enviar resposta | POST /api/v1/questions/{id} |
-| Histórico | GET /api/v1/questions?Page=1&PageSize=10 |
+| Histórico | GET /api/v1/questions?Page=1&PageSize=10&Search=texto |
 | Detalhes | GET /api/v1/questions/{id} |
-| Ranking | GET /api/v1/leaderboard?Page=1&PageSize=20 |
+| Ranking | GET /api/v1/leaderboard?Page=1&PageSize=10&Search=nome |
+| Meta diária de XP | GET/PUT /api/v1/daily-xp-goal |
+| Tarefas | GET/POST/PUT/PATCH/DELETE /api/v1/tasks?Page=1&PageSize=10&Search=texto |
 
 As credenciais também podem ser alteradas em PUT /api/v1/users/me/credentials.
 
